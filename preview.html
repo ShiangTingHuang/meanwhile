@@ -598,8 +598,10 @@ void main(){
   $("setup").hidden = true; $("page").hidden = false; P.other = "B"; P.side = "A";
   const rnd = () => 0.3 + Math.random() * 0.4;
   const fake = (t, ms) => ({ id: "demo" + Math.random(), side: "B", t, ms, x: rnd(), y: rnd() });
-  $("demo1").onclick = () => P.queue.push(fake(nowMs(), 1500));
-  $("demo2").onclick = () => P.queue.push(fake(nowMs(), 6000));
+  // 即時的放在偏旁邊的位置，比較容易跟中間的大漣漪分開看
+  const side = () => { const v = fake(nowMs(), 0); v.x = Math.random() < 0.5 ? 0.27 : 0.73; v.y = Math.random() < 0.5 ? 0.3 : 0.7; return v; };
+  $("demo1").onclick = () => { const v = side(); v.ms = 1500; P.queue.push(v); };
+  $("demo2").onclick = () => { const v = side(); v.ms = 6000; P.queue.push(v); };
   const night = n => { const now = nowMs(); for (let i = 0; i < n; i++) P.backlog.push(fake(now - (8 - 7.5 * i / Math.max(1, n - 1)) * 3600e3, 1500 + Math.random() * 3000)); P.backlogAt = performance.now(); };
   $("demo3").onclick = () => night(3);
   $("demo10").onclick = () => night(10);
