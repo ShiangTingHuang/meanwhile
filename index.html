@@ -170,7 +170,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
   <div class="ipage" data-i="3" hidden>
     <div class="ill" aria-hidden="true"><i class="p4bg"></i><i class="p4haze"></i><i class="p4glow"></i><i class="p4ring"></i></div>
     <p class="itext">你睡覺或不在的時候，<br>想念會等你回來。</p>
-    <p class="isub">下次打開時，會從中間亮起一個大大的漣漪。<br>對方想得越多，漣漪越大，留下的白也越濃，<br>大約一天後才慢慢散去。</p>
+    <p class="isub">下次打開時，會從中間亮起一個大大的漣漪。<br>對方想得越多，漣漪越大，留下的白也越濃。<br>從你看到開始，白會停留三個小時，再慢慢散去。</p>
   </div>
   <div class="inav">
     <div class="idots" aria-hidden="true"><b class="on"></b><b></b><b></b><b></b></div>
@@ -255,21 +255,35 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
 
   const DAY = 24*3600e3;
   // 牛奶（留下來的想念）的參數
-  const MILK_HALF = 5 * 3600e3;      // 每過 5 小時濃度減半，大約一天後幾乎看不見
+  const MILK_HOLD = 3 * 3600e3;      // 從「我看到」那一刻起，白霧維持 3 小時
+  const MILK_FADE = 3 * 3600e3;      // 之後再花 3 小時慢慢淡掉
   const MILK_SPREAD = 2 * 3600e3;    // 剛留下時集中在按的位置，2 小時內慢慢化開到整個方塊
   P.milk = [];                       // 已經「滴進杯子」的想念：{ t, ms, x, y, at }
   P.backlog = []; P.backlogAt = 0;   // 我不在時累積的想念，打開時合成一個大漣漪
   P.clockShift = 0;                  // 預覽用：時間快轉
   const nowMs = () => Date.now() + P.clockShift;
-  function addMilk(v, at) { P.milk.push({ t: v.t, ms: v.ms || 1500, x: v.x ?? 0.5, y: v.y ?? 0.5, at }); if (P.milk.length > 40) P.milk.shift(); }
+  // 記下每個想念是「什麼時候被我看到」的，重新打開網頁時白霧才會接著原本的進度
+  const seenMapKey = () => `ywq.milk.${P.code}.${P.side}`;
+  let seenMap = null;
+  const loadSeen = () => { if (seenMap) return seenMap; try { seenMap = JSON.parse(store.get(seenMapKey()) || "{}"); } catch { seenMap = {}; } return seenMap; };
+  function addMilk(v, at) {
+    const map = loadSeen(), key = v.key || v.id;
+    let seen = key && map[key];
+    if (!seen) {
+      seen = at ? nowMs() : v.t;                           // 之前就看過、但沒記錄的：用送出時間
+      if (key) { map[key] = seen; const keep = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 60); seenMap = Object.fromEntries(keep); store.set(seenMapKey(), JSON.stringify(seenMap)); }
+    }
+    P.milk.push({ t: v.t, seen, ms: v.ms || 1500, x: v.x ?? 0.5, y: v.y ?? 0.5, at });
+    if (P.milk.length > 40) P.milk.shift();
+  }
   function milkUniform() {
     const now = nowMs(), out = [];
-    const live = P.milk.filter(m => now - m.t < 30 * 3600e3).slice(-8);
+    const live = P.milk.filter(m => now - m.seen < MILK_HOLD + MILK_FADE).slice(-8);
     for (const m of live) {
-      const age = Math.max(0, now - m.t);
+      const age = Math.max(0, now - m.seen);
       const str = 0.6 + 0.4 * Math.min(1, m.ms / 4000);
       const melt = m.at ? smooth(0, 6000, performance.now() - m.at) : 1;      // 白光到了之後慢慢化開成牛奶
-      const a = 0.2 * str * Math.pow(0.5, age / MILK_HALF) * melt;
+      const a = 0.2 * str * (1 - smooth(MILK_HOLD, MILK_HOLD + MILK_FADE, age)) * melt;
       const spread = smooth(0, MILK_SPREAD, age);
       const x = m.x + (0.5 - m.x) * 0.5 * spread, y = m.y + (0.5 - m.y) * 0.5 * spread;
       out.push(x, y, 0.22 + 0.45 * spread, a);
@@ -347,6 +361,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
       const v = snap.val();
       if (!v || typeof v.t !== "number" || P.seenIds.has(snap.key)) return;
       P.seenIds.add(snap.key); P.theirs++; updateConn();
+      v.key = snap.key;
       const last = Number(store.get(seenKey())) || 0;
       // 我不在時累積的，合成一個大漣漪；剛剛才送的，照常一個一個即時播
       if (v.t > last && Date.now() - v.t < DAY) {
