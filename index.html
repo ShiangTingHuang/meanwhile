@@ -89,7 +89,15 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
 @keyframes haze4{0%,40%{opacity:0}75%{opacity:.85}93%{opacity:.85}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.ill i{animation:none!important}.p4haze{opacity:.8}.p2glow,.p3haze{opacity:.7}.p2ring,.p3ring{opacity:0}.p3light{opacity:0}}
 
-.me{width:min(78vw,420px);max-width:100%;display:flex;flex-direction:column;align-items:flex-end;gap:8px;margin-top:-8px}
+.me{width:min(78vw,420px);max-width:100%;display:flex;flex-direction:column;align-items:flex-end;gap:8px;margin-top:4px}
+.merow{display:flex;width:100%;align-items:center;gap:12px}
+.sharebtn{white-space:nowrap;display:inline-flex;align-items:center;gap:8px;font:inherit;font-size:13.5px;padding:9px 16px 9px 12px;border-radius:999px;border:1px solid var(--ink-dim);background:#fbfaf8;color:var(--ink);cursor:pointer;min-width:0}
+.sharebtn svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round}
+.sharebtn[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fbfaf8}
+.sharebtn[aria-pressed=true]::after{content:"";width:7px;height:7px;border-radius:50%;background:#ff7a8a;box-shadow:0 0 8px #ff7a8a;animation:blink 2.4s ease-in-out infinite}
+.sharebtn.resume{border-style:dashed}
+.sharebtn:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.sharenote{width:100%;margin:0;font-size:11.5px;line-height:1.5;color:var(--ink-faint)}
 .dots{margin-left:auto;font:inherit;font-size:20px;line-height:1;letter-spacing:.1em;background:none;border:none;color:var(--ink-faint);opacity:.55;cursor:pointer;padding:6px 8px;border-radius:8px}
 .dots:hover,.dots[aria-expanded=true]{opacity:1}
 .dots:focus-visible,.mbtn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
@@ -97,9 +105,6 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
 .mcode{color:var(--ink-faint)}
 .mnote{max-width:260px;font-size:11.5px;line-height:1.5;color:var(--ink-faint)}
 .mbtn[aria-pressed=true]{background:var(--chip);border-color:var(--ink-dim);color:var(--ink)}
-.live{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:11.5px;color:var(--ink-faint);margin-right:auto;align-self:center;background:none;border:none;padding:4px 0;cursor:pointer}
-.live.paused::before{background:var(--ink-faint);box-shadow:none;animation:none}
-.live::before{content:"";width:6px;height:6px;border-radius:50%;background:#d0606f;box-shadow:0 0 6px #d0606f;animation:blink 2.4s ease-in-out infinite}
 @keyframes blink{50%{opacity:.35}}
 .mbtn{font:inherit;font-size:13px;background:transparent;border:1px solid var(--line);border-radius:999px;padding:5px 14px;color:var(--ink-dim);cursor:pointer}
 .mconfirm{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
@@ -191,12 +196,16 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
   </div>
   <p class="sr" id="cap" aria-live="polite"></p>
   <div class="me">
-    <div class="merow" style="display:flex;width:100%;align-items:center"><button class="live" id="live" hidden>Sharing your room’s sound</button>
-    <button class="dots" id="dots" aria-expanded="false" aria-controls="menu" aria-label="Menu">⋯</button></div>
+    <div class="merow">
+      <button class="sharebtn" id="mshare" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"></path></svg>
+        <span id="sharelabel">Share my room’s sound</span>
+      </button>
+      <button class="dots" id="dots" aria-expanded="false" aria-controls="menu" aria-label="Menu">⋯</button>
+    </div>
+    <p class="sharenote" id="mnote">Only loudness is measured. Nothing is recorded. Keep this page open, for example on a charger.</p>
     <div class="menu" id="menu" hidden>
       <span class="mcode" id="mcode"></span>
-      <button class="mbtn" id="mshare" aria-pressed="false">Share my room’s sound</button>
-      <span class="mnote" id="mnote">Only the loudness is measured. Nothing is recorded or sent as sound. Keep this page open, for example on a charger.</span>
       <button class="mbtn" id="mintro">How it works</button>
       <button class="mbtn" id="mchange">Change pairing code</button>
       <div class="mconfirm" id="mconfirm" hidden>
@@ -835,12 +844,13 @@ void main(){
     markShare();
     logEvent("sound_share_off", { reason });
   }
+  const NOTE = "Only loudness is measured. Nothing is recorded. Keep this page open, for example on a charger.";
   function markShare() {
-    $("mshare").setAttribute("aria-pressed", SH.on); $("mshare").textContent = SH.on ? "Stop sharing my room’s sound" : "Share my room’s sound";
-    $("live").hidden = !SH.on; $("live").classList.remove("paused"); $("live").textContent = "Sharing your room’s sound";
+    const b = $("mshare"); b.setAttribute("aria-pressed", SH.on); b.classList.remove("resume");
+    $("sharelabel").textContent = SH.on ? "Sharing sound · tap to stop" : "Share my room’s sound";
+    $("mnote").textContent = NOTE;
   }
-  function showResume() { const l = $("live"); l.hidden = false; l.classList.add("paused"); l.textContent = "Tap to keep sharing your room’s sound"; }
-  $("live").onclick = () => { if (!SH.on) startShare(false); };
+  function showResume() { $("mshare").classList.add("resume"); $("sharelabel").textContent = "Tap to keep sharing your room’s sound"; }
   function alertShare(msg) { $("mnote").textContent = msg; }
   $("mshare").onclick = () => SH.on ? (store.del("ywq.share"), stopShare("user")) : startShare(false);
   document.addEventListener("visibilitychange", async () => {
