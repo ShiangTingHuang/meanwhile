@@ -175,6 +175,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
   const MILK_HALF = 5 * 3600e3;      // 每過 5 小時濃度減半，大約一天後幾乎看不見
   const MILK_SPREAD = 2 * 3600e3;    // 剛留下時集中在按的位置，2 小時內慢慢化開到整個方塊
   P.milk = [];                       // 已經「滴進杯子」的想念：{ t, ms, x, y, at }
+  P.backlog = []; P.backlogAt = 0;   // 我不在時累積的想念，打開時合成一個大漣漪
   P.clockShift = 0;                  // 預覽用：時間快轉
   const nowMs = () => Date.now() + P.clockShift;
   function addMilk(v, at) { P.milk.push({ t: v.t, ms: v.ms || 1500, x: v.x ?? 0.5, y: v.y ?? 0.5, at }); if (P.milk.length > 40) P.milk.shift(); }
@@ -255,7 +256,10 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
       if (!v || typeof v.t !== "number" || P.seenIds.has(snap.key)) return;
       P.seenIds.add(snap.key); P.theirs++; updateConn();
       const last = Number(store.get(seenKey())) || 0;
-      if (v.t > last && Date.now() - v.t < DAY) P.queue.push(v); else addMilk(v, 0);
+      // 我不在時累積的，合成一個大漣漪；剛剛才送的，照常一個一個即時播
+      if (v.t > last && Date.now() - v.t < DAY) {
+        if (Date.now() - v.t > 90e3) { P.backlog.push(v); P.backlogAt = performance.now(); } else P.queue.push(v);
+      } else addMilk(v, 0);
     }, e => { P.err = e && e.code; updateConn(); });
     updateConn();
     logEvent("open");
@@ -452,6 +456,17 @@ void main(){
     }
     // 收到對方的想念：一團白光從邊緣流進來，到了就擴散出水波，之後慢慢淡掉
     if (P.playing > 0) P.playing -= dt;
+    // 累積的想念：中間慢慢亮起一團白，再擴散出一個大漣漪；次數越多越大、越慢、越久
+    if (P.backlog.length && !document.hidden && performance.now() - P.backlogAt > 800) {
+      const list = P.backlog.splice(0), n = list.length, k = Math.min(n, 10) / 10;
+      const avg = (key) => list.reduce((a, v) => a + (v[key] ?? 0.5), 0) / n;
+      const cx = Math.min(0.68, Math.max(0.32, avg("x"))), cy = Math.min(0.68, Math.max(0.32, avg("y")));
+      while (lights.length >= MAX_LIGHTS) { const i = lights.findIndex(l => !l.white); lights.splice(i < 0 ? 0 : i, 1); }
+      lights.push({ white:true, catchup:true, list, k, str: 0.6 + 0.4*k, from:[cx, cy], to:[cx, cy], age:0, travel:2.4, life: 11 + 7*k,
+                    seed: Math.random()*50, r0:0.04, r1:0.22 + 0.2*k, col:[255,253,248], ph: Math.random()*6.28, nRip:0, ripplesLeft:0 });
+      store.set(seenKey(), String(Math.max(...list.map(v => v.t), Number(store.get(seenKey())) || 0)));
+      logEvent("catch_up", { n });
+    }
     if (P.queue.length && P.playing <= 0 && !document.hidden) {
       const v = P.queue.shift();
       const str = clamp01((v.ms || 1500) / 3000) * 0.6 + 0.4;
@@ -470,6 +485,13 @@ void main(){
       const L = lights[i];
       if (L.white) {
         L.age += dt;
+        if (L.catchup && !L.done && L.age >= L.travel) {
+          L.done = true;
+          ripples.push({ x:L.to[0], y:L.to[1], age:0, k: 1.1 + 1.3*L.k, sp: 0.075 - 0.03*L.k, life: 7 + 8*L.k });
+          if (ripples.length > MAX_RIPPLES) ripples.shift();
+          L.list.forEach(v => addMilk(v, performance.now()));
+          if (navigator.vibrate) try { navigator.vibrate(30) } catch {}
+        }
         // 到了：對方按多久，就發出差不多圈數的水波（每 1.5 秒一圈，最多 5 圈）
         while (L.ripplesLeft > 0 && L.age >= L.travel + (L.nRip - L.ripplesLeft) * 0.9) {
           const first = L.ripplesLeft === L.nRip;
@@ -492,7 +514,7 @@ void main(){
       const x = L.from[0] + (L.to[0] - L.from[0]) * k + drift, y = L.from[1] + (L.to[1] - L.from[1]) * k - drift;
       const fadeIn = smooth(0, 3, L.age), fadeOut = 1 - smooth(L.life - 7, L.life, L.age);
       const own = 0.5 - 0.5*Math.cos(phase + L.ph);
-      const a = L.white ? smooth(0, 1.2, L.age) * (1 - smooth(L.travel + 1.5, L.life, L.age)) * (0.9 + 0.3*L.str) * (0.9 + 0.1*own)
+      const a = L.white ? smooth(0, L.catchup ? L.travel : 1.2, L.age) * (1 - smooth(L.travel + 1.5, L.life, L.age)) * (0.9 + 0.3*L.str) * (0.9 + 0.1*own)
               : fadeIn * fadeOut * (0.85 - 0.3*level + (0.2 + 0.55*level)*own) * (0.6 + 0.6*level);
       const c = L.white ? L.col : mix(gray(L.col), L.col, Math.min(1, 0.4 + 0.65*level));   // 安靜偏灰、講話柔和、很吵最鮮豔
       const rr = L.white ? (L.r0 + (L.r1 - L.r0) * k) * (1 + 0.5*smooth(L.travel, L.travel + 4, L.age))
@@ -578,11 +600,11 @@ void main(){
   const fake = (t, ms) => ({ id: "demo" + Math.random(), side: "B", t, ms, x: rnd(), y: rnd() });
   $("demo1").onclick = () => P.queue.push(fake(nowMs(), 1500));
   $("demo2").onclick = () => P.queue.push(fake(nowMs(), 6000));
-  const night = n => { const now = nowMs(); for (let i = 0; i < n; i++) P.queue.push(fake(now - (8 - 7.5 * i / Math.max(1, n - 1)) * 3600e3, 1500 + Math.random() * 3000)); };
+  const night = n => { const now = nowMs(); for (let i = 0; i < n; i++) P.backlog.push(fake(now - (8 - 7.5 * i / Math.max(1, n - 1)) * 3600e3, 1500 + Math.random() * 3000)); P.backlogAt = performance.now(); };
   $("demo3").onclick = () => night(3);
   $("demo10").onclick = () => night(10);
   $("ff").onclick = () => { P.clockShift += 6 * 3600e3; };
-  $("clear").onclick = () => { P.milk = []; P.queue = []; P.clockShift = 0; };
+  $("clear").onclick = () => { P.milk = []; P.queue = []; P.backlog = []; P.clockShift = 0; };
   setInterval(() => { $("clock").textContent = P.clockShift ? `已快轉 ${P.clockShift / 3600e3} 小時` : ""; }, 500);
 })();
 </script>
