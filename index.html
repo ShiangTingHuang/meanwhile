@@ -258,9 +258,9 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
   }
   const periodOf = h => h < 5 ? "night" : h < 10 ? "morning" : h < 17 ? "day" : h < 22 ? "evening" : "night";
   // 一天中的亮度：深夜最暗，白天最亮，中間慢慢過渡
-  const dayBright = h => 0.45 + 0.55 * (0.5 - 0.5 * Math.cos(Math.PI * 2 * ((h - 3 + 24) % 24) / 24));
+  const dayBright = h => 0.62 + 0.38 * (0.5 - 0.5 * Math.cos(Math.PI * 2 * ((h - 3 + 24) % 24) / 24));
   // 沒有房間聲音時的平靜程度（只看時間，不再隨機亂跳）
-  const timeLevel = h => { const p = periodOf(h); return p === "night" ? 0.05 : p === "morning" ? 0.18 : p === "day" ? 0.26 : 0.18; };
+  const timeLevel = h => { const p = periodOf(h); return p === "night" ? 0.08 : p === "morning" ? 0.2 : p === "day" ? 0.28 : 0.2; };
   // 對方房間的音量：45 秒內有更新才算數
   function roomLevel() {
     const sd = P.pstat && P.pstat.sound;
