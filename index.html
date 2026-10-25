@@ -61,6 +61,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
 .sides{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .side,.go{font:inherit;font-size:15px;padding:11px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink-dim);cursor:pointer}
 .side[aria-pressed=true]{background:#fbfaf8;border-color:var(--ink-dim);color:var(--ink)}
+.go:disabled{opacity:.6;cursor:default}
 .go{margin-top:14px;background:var(--ink);border-color:var(--ink);color:#fbfaf8}
 .side:focus-visible,.go:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .err{color:#a3324a;font-size:13px;margin:0}
@@ -86,14 +87,9 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
 
 <section class="setup" id="setup" hidden>
   <h1>餘溫</h1>
-  <p>兩個人各自打開這一頁，輸入同一組配對碼，一人選 A、一人選 B。</p>
+  <p>兩個人各自打開這一頁，輸入同一組配對碼就好。</p>
   <label class="lbl" for="code">配對碼</label>
   <input type="text" id="code" placeholder="例如 p1-couple" autocomplete="off" autocapitalize="off" spellcheck="false">
-  <span class="lbl">我是</span>
-  <div class="sides">
-    <button class="side" id="sideA" aria-pressed="false">A</button>
-    <button class="side" id="sideB" aria-pressed="false">B</button>
-  </div>
   <p class="err" id="err" hidden></p>
   <button class="go" id="start">開始</button>
 </section>
@@ -151,19 +147,13 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
   };
   const P = { code:null, side:null, other:null, db:null, room:null, mine:[], seenIds:new Set(), queue:[], playing:0, ready:false };
   const $ = id => document.getElementById(id);
-  let pick = store.get("ywq.side");
-  const markSide = () => { $("sideA").setAttribute("aria-pressed", pick === "A"); $("sideB").setAttribute("aria-pressed", pick === "B"); };
   $("code").value = store.get("ywq.code") || "";
-  markSide();
-  $("sideA").onclick = () => { pick = "A"; markSide(); };
-  $("sideB").onclick = () => { pick = "B"; markSide(); };
   const clean = v => v.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 32);
   $("start").onclick = () => {
     const c = clean($("code").value), err = $("err");
     if (!c) { err.textContent = "請輸入配對碼（英文字母或數字）。"; err.hidden = false; return; }
-    if (!pick) { err.textContent = "請選擇 A 或 B，兩個人要選不同的。"; err.hidden = false; return; }
-    err.hidden = true; store.set("ywq.code", c); store.set("ywq.side", pick);
-    connect(c, pick);
+    err.hidden = true;
+    connect(c);
   };
   $("leave").onclick = () => { store.del("ywq.code"); location.reload(); };
 
@@ -180,16 +170,48 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
     $("conn").textContent = `${P.code} · 我是 ${P.side} · ${P.db ? "已連線" : (P.err ? "連線失敗（" + P.err + "）" : "連線中…")} · 我送出 ${P.sent} 次${P.lastWrite ? "（上次" + P.lastWrite + "）" : ""} · 對方送來 ${P.theirs} 次`;
   }
 
-  async function connect(code, side) {
-    P.code = code; P.side = side; P.other = side === "A" ? "B" : "A";
-    $("setup").hidden = true; $("page").hidden = false;
-    updateConn();
+  // 自動分配：第一個用這組配對碼的人是 A，第二個是 B；同一支手機之後再打開，還是原本那個
+  async function claimSide(db, code, uid) {
+    const members = (await db.ref(`pairs/${code}/members`).get()).val() || {};
+    if (members.A === uid) return "A";
+    if (members.B === uid) return "B";
+    for (const slot of ["A", "B"]) {
+      const res = await db.ref(`pairs/${code}/members/${slot}`).transaction(cur => cur == null ? uid : undefined);
+      if (res.snapshot.val() === uid) return slot;
+    }
+    return null;                                             // 已經有兩個人了
+  }
+
+  function setupError(msg) {
+    const err = $("err"), btn = $("start");
+    $("setup").hidden = false; $("page").hidden = true;
+    btn.disabled = false; btn.textContent = "開始";
+    err.textContent = msg; err.hidden = false;
+  }
+
+  async function connect(code) {
+    const btn = $("start");
+    btn.disabled = true; btn.textContent = "連線中…";
+    let db, side;
     try {
       if (!window.firebase || !FIREBASE_CONFIG.apiKey || FIREBASE_CONFIG.apiKey.startsWith("貼上")) throw { code: "還沒填 Firebase 設定" };
       if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
-      await firebase.auth().signInAnonymously();             // 受測者不用註冊，背後自動拿一個匿名身分
-      P.db = firebase.database();
-    } catch (e) { P.err = (e && (e.code || e.message)) || "unknown"; updateConn(); return; }
+      const cred = await firebase.auth().signInAnonymously();  // 受測者不用註冊，背後自動拿一個匿名身分
+      db = firebase.database();
+      side = await claimSide(db, code, cred.user.uid);
+    } catch (e) {
+      setupError("連不上，請確認網路後再試一次。（" + ((e && (e.code || e.message)) || "unknown") + "）");
+      return;
+    }
+    if (!side) {
+      store.del("ywq.code");
+      setupError("這組配對碼已經有兩個人在用了，請確認有沒有打錯，或換一組新的。");
+      return;
+    }
+    store.set("ywq.code", code);
+    P.code = code; P.side = side; P.other = side === "A" ? "B" : "A"; P.db = db;
+    $("setup").hidden = true; $("page").hidden = false;
+    updateConn();
     // 我自己送出過幾次
     P.db.ref(`pairs/${code}/sends/${side}`).limitToLast(40).on("child_added", () => { P.sent++; updateConn(); });
     // 對方送來的：舊的（我上次打開之後、24 小時內）排隊一個一個播；新的即時播
@@ -500,8 +522,9 @@ void main(){
   requestAnimationFrame(frame);
 
   $("simRecv").onclick = () => P.queue.push({ id: "sim" + Date.now(), side: P.other, t: Date.now(), ms: 2600, x: 0.3 + Math.random()*0.4, y: 0.3 + Math.random()*0.4 });
-  const savedCode = store.get("ywq.code"), savedSide = store.get("ywq.side");
-  if (savedCode && savedSide) connect(savedCode, savedSide); else $("setup").hidden = false;
+  const savedCode = store.get("ywq.code");
+  $("setup").hidden = false;
+  if (savedCode) connect(savedCode);
 })();
 </script>
 
