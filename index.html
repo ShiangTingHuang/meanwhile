@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>meanwhile</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400&family=Noto+Sans+TC:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500&display=swap">
 <style>
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0}
@@ -13,8 +13,8 @@ body{margin:0}
 /* Layout: one square in the middle of a pale page, nothing else competes; a quiet researcher strip at the bottom. Single deliberate light look, grainy like a risograph print. */
 :root{
   --paper:#e7e3ee; --ink:#3a1f2a; --ink-dim:#7a6470; --ink-faint:#a595a1; --line:#cfc6da; --chip:#f4f1f7;
-  --f-display:"LXGW WenKai TC","Kaiti TC","STKaiti",serif;
-  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-display:"Instrument Serif","Iowan Old Style",Georgia,serif;
+  --f-body:"Manrope","Helvetica Neue",system-ui,sans-serif;
   color-scheme:light;
 }
 html,body{height:100%}
@@ -47,7 +47,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
 .ipage{display:flex;flex-direction:column;align-items:center;gap:22px;text-align:center;max-width:320px}
 .ill{position:relative;width:200px;max-width:60vw;aspect-ratio:1;border-radius:6px;overflow:hidden;background:#fdfcfa;box-shadow:0 18px 40px -20px rgba(58,31,42,.4)}
 .ill i{position:absolute;display:block;border-radius:50%;pointer-events:none}
-.itext{font-family:var(--f-display);font-size:21px;line-height:1.5;letter-spacing:.04em;color:var(--ink);margin:0;text-wrap:balance}
+.itext{font-family:var(--f-display);font-size:25px;line-height:1.3;letter-spacing:.005em;color:var(--ink);margin:0;text-wrap:balance}
 .isub{font-size:13px;color:var(--ink-dim);margin:-12px 0 0;line-height:1.6}
 .inav{display:flex;flex-direction:column;align-items:center;gap:14px}
 .idots{display:flex;gap:8px}
@@ -110,7 +110,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
 .chip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .meter{font-variant-numeric:tabular-nums;min-width:5.5em}
 .setup{max-width:360px;margin:0 auto;min-height:100%;box-sizing:border-box;padding-block:14vh 32px;display:flex;flex-direction:column;gap:10px}
-.setup h1{font-family:var(--f-display);font-weight:400;font-size:30px;letter-spacing:.12em;margin:0 0 4px}
+.setup h1{font-family:var(--f-display);font-weight:400;font-size:38px;letter-spacing:.01em;margin:0 0 4px}
 .setup p{margin:0 0 10px;color:var(--ink-dim);line-height:1.7;font-size:14px}
 .lbl{font-size:12px;letter-spacing:.12em;color:var(--ink-faint);margin-top:6px}
 .setup input{font:inherit;font-size:16px;padding:11px 13px;border-radius:10px;border:1px solid var(--line);background:#fbfaf8;color:var(--ink);width:100%;box-sizing:border-box}
@@ -143,72 +143,72 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
 <body>
 
 <section class="setup" id="setup" hidden>
-  <h1>餘溫</h1>
-  <p>兩個人各自打開這一頁，輸入同一組配對碼就好。</p>
-  <label class="lbl" for="code">配對碼</label>
-  <input type="text" id="code" placeholder="例如 p1-couple" autocomplete="off" autocapitalize="off" spellcheck="false">
+  <h1>meanwhile</h1>
+  <p>Each of you opens this page on your own phone and enters the same pairing code.</p>
+  <label class="lbl" for="code">Pairing code</label>
+  <input type="text" id="code" placeholder="e.g. p1-couple" autocomplete="off" autocapitalize="off" spellcheck="false">
   <p class="err" id="err" hidden></p>
-  <button class="go" id="start">開始</button>
+  <button class="go" id="start">Start</button>
 </section>
 
-<section class="intro" id="intro" hidden aria-label="使用說明">
+<section class="intro" id="intro" hidden aria-label="How it works">
   <div class="ipage" data-i="0">
     <div class="ill" aria-hidden="true"><i class="p1a"></i><i class="p1b"></i><i class="p1c"></i></div>
-    <p class="itext">方塊裡的光，<br>是對方家裡的樣子。</p>
-    <p class="isub">那邊熱鬧的時候，光會多一點、流得快一點。</p>
+    <p class="itext">The light in this square<br>is your partner’s home.</p>
+    <p class="isub">When it’s lively over there, there’s more light and it moves faster.</p>
   </div>
   <div class="ipage" data-i="1" hidden>
     <div class="ill" aria-hidden="true"><i class="p2bg"></i><i class="p2glow"></i><i class="p2ring"></i><i class="p2ring r2"></i><i class="p2ring r3"></i><i class="p2finger"></i></div>
-    <p class="itext">想對方的時候，<br>就長按方塊。</p>
-    <p class="isub">按越久，傳過去的越多。放手就送出去了。</p>
+    <p class="itext">When you miss them,<br>press and hold the square.</p>
+    <p class="isub">The longer you hold, the more you send. Let go to send it.</p>
   </div>
   <div class="ipage" data-i="2" hidden>
     <div class="ill" aria-hidden="true"><i class="p3bg"></i><i class="p3haze"></i><i class="p3light"></i><i class="p3ring"></i></div>
-    <p class="itext">對方想你的時候，<br>光會流進來。</p>
-    <p class="isub">它會擴散成水波，然後化成淡淡的白，留在方塊裡。</p>
+    <p class="itext">When they miss you,<br>light flows in.</p>
+    <p class="isub">It spreads into ripples, then settles as a soft white glow in the square.</p>
   </div>
   <div class="ipage" data-i="3" hidden>
     <div class="ill" aria-hidden="true"><i class="p4bg"></i><i class="p4haze"></i><i class="p4glow"></i><i class="p4ring"></i></div>
-    <p class="itext">你睡覺或不在的時候，<br>想念會等你回來。</p>
-    <p class="isub">下次打開時，會從中間亮起一個大大的漣漪。<br>對方想得越多，漣漪越大，留下的白也越濃。<br>從你看到開始，白會停留三個小時，再慢慢散去。</p>
+    <p class="itext">While you sleep or are away,<br>it waits for you.</p>
+    <p class="isub">Next time you open the page, one large ripple rises from the centre.<br>The more they missed you, the bigger the ripple and the whiter the glow.<br>The glow stays for three hours after you see it, then slowly fades.</p>
   </div>
   <div class="inav">
     <div class="idots" aria-hidden="true"><b class="on"></b><b></b><b></b><b></b></div>
-    <button class="inext" id="inext">下一步</button>
+    <button class="inext" id="inext">Next</button>
   </div>
 </section>
 
 <div class="page" id="page" hidden>
   <div class="sqwrap" id="wrap">
   <div class="sendring" id="ring" aria-hidden="true"></div>
-  <div class="square grain" id="sq" role="button" tabindex="0" aria-label="對方家裡的聲音顏色；想對方的時候長按這裡"><canvas id="gl" aria-hidden="true"></canvas></div>
+  <div class="square grain" id="sq" role="button" tabindex="0" aria-label="The light of your partner’s home. Press and hold when you miss them."><canvas id="gl" aria-hidden="true"></canvas></div>
   </div>
   <p class="sr" id="cap" aria-live="polite"></p>
   <div class="me">
-    <button class="dots" id="dots" aria-expanded="false" aria-controls="menu" aria-label="設定">⋯</button>
+    <button class="dots" id="dots" aria-expanded="false" aria-controls="menu" aria-label="Menu">⋯</button>
     <div class="menu" id="menu" hidden>
       <span class="mcode" id="mcode"></span>
-      <button class="mbtn" id="mintro">看說明</button>
-      <button class="mbtn" id="mchange">換配對碼</button>
+      <button class="mbtn" id="mintro">How it works</button>
+      <button class="mbtn" id="mchange">Change pairing code</button>
       <div class="mconfirm" id="mconfirm" hidden>
-        <span>確定要換嗎？換了之後要重新輸入配對碼。</span>
-        <div class="mrow"><button class="mbtn" id="myes">確定</button><button class="mbtn" id="mno">取消</button></div>
+        <span>Change the pairing code? You’ll need to enter a code again.</span>
+        <div class="mrow"><button class="mbtn" id="myes">Change</button><button class="mbtn" id="mno">Cancel</button></div>
       </div>
     </div>
   </div>
   <details class="rbox" id="rbox" hidden>
-  <summary>研究者</summary>
-  <div class="research" aria-label="研究者控制">
-    <button class="chip" data-m="auto" aria-pressed="true">自動</button>
-    <button class="chip" data-m="0.08">安靜</button>
-    <button class="chip" data-m="0.45">講話</button>
-    <button class="chip" data-m="0.9">很吵</button>
+  <summary>Researcher</summary>
+  <div class="research" aria-label="Researcher controls">
+    <button class="chip" data-m="auto" aria-pressed="true">Auto</button>
+    <button class="chip" data-m="0.08">Quiet</button>
+    <button class="chip" data-m="0.45">Talking</button>
+    <button class="chip" data-m="0.9">Loud</button>
     <span class="meter" id="meter"></span>
   </div>
-  <div class="research" aria-label="連線">
+  <div class="research" aria-label="Connection">
     <span class="meter" id="conn"></span>
-    <button class="chip" id="simRecv">模擬收到對方的想念</button>
-    <button class="chip" id="leave">換配對碼</button>
+    <button class="chip" id="simRecv">Simulate a message from partner</button>
+    <button class="chip" id="leave">Change pairing code</button>
   </div>
   </details>
 </div>
@@ -247,7 +247,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
   const clean = v => v.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 32);
   $("start").onclick = () => {
     const c = clean($("code").value), err = $("err");
-    if (!c) { err.textContent = "請輸入配對碼（英文字母或數字）。"; err.hidden = false; return; }
+    if (!c) { err.textContent = "Enter a pairing code (letters or numbers)."; err.hidden = false; return; }
     err.hidden = true;
     connect(c);
   };
@@ -308,7 +308,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
   }
   function updateConn() {
     if (!P.code) { $("conn").textContent = ""; return; }
-    $("conn").textContent = `${P.code} · 我是 ${P.side} · ${P.db ? "已連線" : (P.err ? "連線失敗（" + P.err + "）" : "連線中…")} · 我送出 ${P.sent} 次${P.lastWrite ? "（上次" + P.lastWrite + "）" : ""} · 對方送來 ${P.theirs} 次`;
+    $("conn").textContent = `${P.code} · I am ${P.side} · ${P.db ? "connected" : (P.err ? "connection failed (" + P.err + ")" : "connecting…")} · sent ${P.sent}${P.lastWrite ? " (last " + P.lastWrite + ")" : ""} · received ${P.theirs}`;
   }
 
   // 自動分配：第一個用這組配對碼的人是 A，第二個是 B；同一支手機之後再打開，還是原本那個
@@ -326,27 +326,27 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
   function setupError(msg) {
     const err = $("err"), btn = $("start");
     $("setup").hidden = false; $("page").hidden = true;
-    btn.disabled = false; btn.textContent = "開始";
+    btn.disabled = false; btn.textContent = "Start";
     err.textContent = msg; err.hidden = false;
   }
 
   async function connect(code) {
     const btn = $("start");
-    btn.disabled = true; btn.textContent = "連線中…";
+    btn.disabled = true; btn.textContent = "Connecting…";
     let db, side;
     try {
-      if (!window.firebase || !FIREBASE_CONFIG.apiKey || FIREBASE_CONFIG.apiKey.startsWith("貼上")) throw { code: "還沒填 Firebase 設定" };
+      if (!window.firebase || !FIREBASE_CONFIG.apiKey || FIREBASE_CONFIG.apiKey.startsWith("貼上")) throw { code: "Firebase config missing" };
       if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
       const cred = await firebase.auth().signInAnonymously();  // 受測者不用註冊，背後自動拿一個匿名身分
       db = firebase.database();
       side = await claimSide(db, code, cred.user.uid);
     } catch (e) {
-      setupError("連不上，請確認網路後再試一次。（" + ((e && (e.code || e.message)) || "unknown") + "）");
+      setupError("Couldn’t connect. Check your internet connection and try again. (" + ((e && (e.code || e.message)) || "unknown") + ")");
       return;
     }
     if (!side) {
       store.del("ywq.code");
-      setupError("這組配對碼已經有兩個人在用了，請確認有沒有打錯，或換一組新的。");
+      setupError("Two people are already using this pairing code. Check the spelling, or choose a new code.");
       return;
     }
     store.set("ywq.code", code);
@@ -384,8 +384,8 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
     if (!P.db) return;
     const v = { side: P.side, t: Date.now(), ms: Math.round(ms), x: +x.toFixed(3), y: +y.toFixed(3), tz: TZ, utcOffsetMin: -new Date().getTimezoneOffset() };
     P.db.ref(`pairs/${P.code}/sends/${P.side}`).push(v)
-      .then(() => { P.lastWrite = "成功"; updateConn(); })
-      .catch(e => { P.lastWrite = "失敗（" + (e && e.code || "unknown") + "）"; updateConn(); });
+      .then(() => { P.lastWrite = "ok"; updateConn(); })
+      .catch(e => { P.lastWrite = "failed (" + (e && e.code || "unknown") + ")"; updateConn(); });
     logEvent("send", { ms: v.ms });
   }
   // 看了多久：頁面出現在螢幕上時開始計時，切走或關掉時記下停留秒數
@@ -675,7 +675,7 @@ void main(){
           if (navigator.vibrate) try { navigator.vibrate([12, 50, 22]) } catch {}
           ripples.push({ x:send.x, y:send.y, age:0, k:1.7, sp:0.34, life:2.6 });
           if (ripples.length > MAX_RIPPLES) ripples.shift();
-          cap.textContent = "送出去了";                        // 只給螢幕閱讀器
+          cap.textContent = "Sent";                        // 只給螢幕閱讀器
           sendMiss(send.x, send.y, send.ms);
         }
         const f = clamp01((send.t - GATHER) / 0.18);
@@ -723,7 +723,7 @@ void main(){
       sq.style.background = layers.reverse().join(",") + `, rgb(${BASE.join(",")})`;
     }
 
-    meter.textContent = `音量 ${Math.round(level*100)}%`;
+    meter.textContent = `Volume ${Math.round(level*100)}%`;
     const sn = soundName(level);
     if (P.db && sn !== P.lastSound) { if (P.lastSound) logEvent("sound_change", { from: P.lastSound, to: sn }); P.lastSound = sn; }
     requestAnimationFrame(frame);
@@ -737,7 +737,7 @@ void main(){
     introAt = i;
     ipages.forEach((p, k) => p.hidden = k !== i);
     idots.forEach((d, k) => d.classList.toggle("on", k === i));
-    $("inext").textContent = i === ipages.length - 1 ? "開始" : "下一步";
+    $("inext").textContent = i === ipages.length - 1 ? "Start" : "Next";
   }
   function openIntro() { showIntro(0); $("intro").hidden = false; $("inext").focus(); }
   function closeIntro(how) { $("intro").hidden = true; store.set("ywq.intro", "1"); logEvent("intro_close", { how, page: introAt + 1 }); }
@@ -757,7 +757,7 @@ void main(){
     const open = $("menu").hidden;
     $("menu").hidden = !open; $("dots").setAttribute("aria-expanded", open);
     $("mconfirm").hidden = true; $("mchange").hidden = false;
-    $("mcode").textContent = P.code ? `配對碼：${P.code}` : "";
+    $("mcode").textContent = P.code ? `Pairing code: ${P.code}` : "";
   };
   $("mchange").onclick = () => { $("mchange").hidden = true; $("mconfirm").hidden = false; };
   $("mno").onclick = () => { $("mconfirm").hidden = true; $("mchange").hidden = false; };

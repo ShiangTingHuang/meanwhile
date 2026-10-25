@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>meanwhile 預覽</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400&family=Noto+Sans+TC:wght@400;500&display=swap">
+<title>meanwhile preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500&display=swap">
 <style>
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0}
@@ -13,8 +13,8 @@ body{margin:0}
 /* Layout: one square in the middle of a pale page, nothing else competes; a quiet researcher strip at the bottom. Single deliberate light look, grainy like a risograph print. */
 :root{
   --paper:#e7e3ee; --ink:#3a1f2a; --ink-dim:#7a6470; --ink-faint:#a595a1; --line:#cfc6da; --chip:#f4f1f7;
-  --f-display:"LXGW WenKai TC","Kaiti TC","STKaiti",serif;
-  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-display:"Instrument Serif","Iowan Old Style",Georgia,serif;
+  --f-body:"Manrope","Helvetica Neue",system-ui,sans-serif;
   color-scheme:light;
 }
 html,body{height:100%}
@@ -99,30 +99,30 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
 <div class="page" id="page" hidden>
   <div class="sqwrap" id="wrap">
   <div class="sendring" id="ring" aria-hidden="true"></div>
-  <div class="square grain" id="sq" role="button" tabindex="0" aria-label="對方家裡的聲音顏色；想對方的時候長按這裡"><canvas id="gl" aria-hidden="true"></canvas></div>
+  <div class="square grain" id="sq" role="button" tabindex="0" aria-label="The light of your partner’s home. Press and hold when you miss them."><canvas id="gl" aria-hidden="true"></canvas></div>
   </div>
   <p class="sr" id="cap" aria-live="polite"></p>
   <details class="rbox" open>
-  <summary>預覽控制</summary>
-  <div class="research" aria-label="研究者控制">
-    <button class="chip" data-m="auto" aria-pressed="true">自動</button>
-    <button class="chip" data-m="0.08">安靜</button>
-    <button class="chip" data-m="0.45">講話</button>
-    <button class="chip" data-m="0.9">很吵</button>
+  <summary>Preview controls</summary>
+  <div class="research" aria-label="Preview controls">
+    <button class="chip" data-m="auto" aria-pressed="true">Auto</button>
+    <button class="chip" data-m="0.08">Quiet</button>
+    <button class="chip" data-m="0.45">Talking</button>
+    <button class="chip" data-m="0.9">Loud</button>
     <span class="meter" id="meter"></span>
   </div>
   <div class="research" aria-label="連線">
     <span class="meter" id="conn"></span>
-    <button class="chip" id="demo1">他現在想你（按 1.5 秒）</button>
-    <button class="chip" id="demo2">他現在想你（按 6 秒）</button>
+    <button class="chip" id="demo1">They miss you now (1.5 s hold)</button>
+    <button class="chip" id="demo2">They miss you now (6 s hold)</button>
   </div>
   <div class="research">
-    <button class="chip" id="demo3">你睡覺時他想了 3 次</button>
-    <button class="chip" id="demo10">你睡覺時他想了 10 次</button>
+    <button class="chip" id="demo3">They missed you 3 times while you slept</button>
+    <button class="chip" id="demo10">…10 times while you slept</button>
   </div>
   <div class="research">
-    <button class="chip" id="ff">時間快轉 6 小時</button>
-    <button class="chip" id="clear">清除</button>
+    <button class="chip" id="ff">Skip ahead 6 hours</button>
+    <button class="chip" id="clear">Reset</button>
     <span class="meter" id="clock"></span>
     <button class="chip" id="simRecv" hidden>模擬收到對方的想念</button>
     <button class="chip" id="leave" hidden>換配對碼</button>
@@ -555,7 +555,7 @@ void main(){
           if (navigator.vibrate) try { navigator.vibrate([12, 50, 22]) } catch {}
           ripples.push({ x:send.x, y:send.y, age:0, k:1.7, sp:0.34, life:2.6 });
           if (ripples.length > MAX_RIPPLES) ripples.shift();
-          cap.textContent = "送出去了";                        // 只給螢幕閱讀器
+          cap.textContent = "Sent";                        // 只給螢幕閱讀器
           sendMiss(send.x, send.y, send.ms);
         }
         const f = clamp01((send.t - GATHER) / 0.18);
@@ -603,7 +603,7 @@ void main(){
       sq.style.background = layers.reverse().join(",") + `, rgb(${BASE.join(",")})`;
     }
 
-    meter.textContent = `音量 ${Math.round(level*100)}%`;
+    meter.textContent = `Volume ${Math.round(level*100)}%`;
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
@@ -622,7 +622,7 @@ void main(){
   $("demo10").onclick = () => night(10);
   $("ff").onclick = () => { P.clockShift += 6 * 3600e3; };
   $("clear").onclick = () => { P.milk = []; P.queue = []; P.backlog = []; P.clockShift = 0; };
-  setInterval(() => { $("clock").textContent = P.clockShift ? `已快轉 ${P.clockShift / 3600e3} 小時` : ""; }, 500);
+  setInterval(() => { $("clock").textContent = P.clockShift ? `skipped ${P.clockShift / 3600e3} h` : ""; }, 500);
 })();
 </script>
 
