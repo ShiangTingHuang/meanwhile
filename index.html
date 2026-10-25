@@ -184,9 +184,17 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
   const seenKey = () => `ywq.seen.${P.code}.${P.side}`;
   const ymd = () => { const d = new Date(); return d.getFullYear() + String(d.getMonth()+1).padStart(2,"0") + String(d.getDate()).padStart(2,"0"); };
   P.sent = 0; P.theirs = 0;
+  // 每一筆紀錄都附上：當地時區、當地時間、當時方塊顯示的聲音狀態
+  const TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch { return ""; } })();
+  const localStamp = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}:${String(d.getSeconds()).padStart(2,"0")}`;
+  const soundName = l => l < 0.25 ? "quiet" : l < 0.6 ? "talk" : "loud";
   function logEvent(type, extra = {}) {
     if (!P.db) return;
-    P.db.ref(`pairs/${P.code}/log/${P.side}-${ymd()}`).push({ t: new Date().toISOString(), type, ...extra }).catch(() => {});
+    const d = new Date();
+    P.db.ref(`pairs/${P.code}/log/${P.side}-${ymd()}`).push({
+      t: d.toISOString(), local: localStamp(d), tz: TZ, utcOffsetMin: -d.getTimezoneOffset(),
+      sound: soundName(level), soundMode: mode, type, ...extra
+    }).catch(() => {});
   }
   function updateConn() {
     if (!P.code) { $("conn").textContent = ""; return; }
@@ -250,18 +258,45 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
     }, e => { P.err = e && e.code; updateConn(); });
     updateConn();
     logEvent("open");
+    if (!document.hidden) { P.visibleSince = Date.now(); setPresence(true); }
+    // 兩人同時在線：對方也開著頁面的時候
+    P.db.ref(`pairs/${code}/presence/${P.other}`).on("value", snap => {
+      const both = snap.exists() && !document.hidden;
+      if (both && !P.bothSince) { P.bothSince = Date.now(); logEvent("both_online_start"); }
+      if (!both && P.bothSince) { logEvent("both_online_end", { seconds: Math.round((Date.now() - P.bothSince) / 1000) }); P.bothSince = 0; }
+    });
   }
 
   // 我送出一次想念：寫進 Firebase，對方開著就即時收到，不在的話下次打開時收到
   function sendMiss(x, y, ms) {
     if (!P.db) return;
-    const v = { side: P.side, t: Date.now(), ms: Math.round(ms), x: +x.toFixed(3), y: +y.toFixed(3) };
+    const v = { side: P.side, t: Date.now(), ms: Math.round(ms), x: +x.toFixed(3), y: +y.toFixed(3), tz: TZ, utcOffsetMin: -new Date().getTimezoneOffset() };
     P.db.ref(`pairs/${P.code}/sends/${P.side}`).push(v)
       .then(() => { P.lastWrite = "成功"; updateConn(); })
       .catch(e => { P.lastWrite = "失敗（" + (e && e.code || "unknown") + "）"; updateConn(); });
     logEvent("send", { ms: v.ms });
   }
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) P.playing = Math.min(P.playing, 1.2); });
+  // 看了多久：頁面出現在螢幕上時開始計時，切走或關掉時記下停留秒數
+  P.visibleSince = document.hidden ? 0 : Date.now();
+  function setPresence(on) {
+    if (!P.db) return;
+    const ref = P.db.ref(`pairs/${P.code}/presence/${P.side}`);
+    if (on) { ref.set(Date.now()).catch(() => {}); ref.onDisconnect().remove(); }
+    else ref.remove().catch(() => {});
+  }
+  function endView(reason) {
+    if (!P.visibleSince) return;
+    logEvent("view_end", { seconds: Math.round((Date.now() - P.visibleSince) / 1000), reason });
+    P.visibleSince = 0;
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      P.playing = Math.min(P.playing, 1.2);
+      if (!P.visibleSince) { P.visibleSince = Date.now(); logEvent("view_start"); }
+      setPresence(true);
+    } else { endView("hidden"); setPresence(false); }
+  });
+  window.addEventListener("pagehide", () => { endView("close"); setPresence(false); });
 
   /* ---------- 研究者控制 ---------- */
   let mode = "auto";
@@ -452,7 +487,7 @@ void main(){
       lights.push({ white:true, catchup:true, list, k, str: 0.6 + 0.4*k, from:[cx, cy], to:[cx, cy], age:0, travel:2.4, life: 11 + 7*k,
                     seed: Math.random()*50, r0:0.04, r1:0.22 + 0.2*k, col:[255,253,248], ph: Math.random()*6.28, nRip:0, ripplesLeft:0 });
       store.set(seenKey(), String(Math.max(...list.map(v => v.t), Number(store.get(seenKey())) || 0)));
-      logEvent("catch_up", { n });
+      logEvent("catch_up", { n, delaysMin: list.map(v => Math.round((Date.now() - v.t) / 60000)), ms: list.map(v => v.ms || 0) });
     }
     if (P.queue.length && P.playing <= 0 && !document.hidden) {
       const v = P.queue.shift();
@@ -466,7 +501,7 @@ void main(){
                     r0:0.10, r1:0.20 + 0.12*str, col:[255,253,248], ph: Math.random()*6.28 });
       P.playing = 3.8 + 0.9 * (nRip - 1);
       store.set(seenKey(), String(Math.max(v.t, Number(store.get(seenKey())) || 0)));
-      logEvent("receive", { ms: v.ms || 0, late: Date.now() - v.t > 120e3 });
+      logEvent("receive", { ms: v.ms || 0, delaySec: Math.round((Date.now() - v.t) / 1000) });
     }
     for (let i = lights.length - 1; i >= 0; i--) {
       const L = lights[i];
@@ -576,6 +611,8 @@ void main(){
     }
 
     meter.textContent = `音量 ${Math.round(level*100)}%`;
+    const sn = soundName(level);
+    if (P.db && sn !== P.lastSound) { if (P.lastSound) logEvent("sound_change", { from: P.lastSound, to: sn }); P.lastSound = sn; }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
