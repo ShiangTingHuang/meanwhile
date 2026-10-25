@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>meanwhile 預覽</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400&family=Noto+Sans+TC:wght@400;500&display=swap">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+
+/* Layout: one square in the middle of a pale page, nothing else competes; a quiet researcher strip at the bottom. Single deliberate light look, grainy like a risograph print. */
+:root{
+  --paper:#e7e3ee; --ink:#3a1f2a; --ink-dim:#7a6470; --ink-faint:#a595a1; --line:#cfc6da; --chip:#f4f1f7;
+  --f-display:"LXGW WenKai TC","Kaiti TC","STKaiti",serif;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  color-scheme:light;
+}
+html,body{height:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:14px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.grain::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.32;mix-blend-mode:overlay;border-radius:inherit;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+.page{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding-block:24px;box-sizing:border-box}
+.square{position:relative;width:min(78vw,420px);max-width:100%;aspect-ratio:1;border-radius:6px;overflow:hidden;background:#fdfcfa;
+  box-shadow:0 24px 50px -24px rgba(58,31,42,.4);cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  transform:scale(var(--press,1));transition:transform .3s ease}
+.square.held{--press:.98}
+.square canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.square.webgl::after{display:none}
+.square:focus-visible{outline:2px solid var(--ink);outline-offset:4px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;margin:0}
+.sqwrap{position:relative;width:min(78vw,420px);max-width:100%}
+.sqwrap .square{width:100%}
+.sqwrap.pop{animation:pop .55s cubic-bezier(.3,1.6,.5,1)}
+@keyframes pop{0%{transform:scale(1)}30%{transform:scale(1.035)}60%{transform:scale(.992)}100%{transform:scale(1)}}
+/* 送出去時，光溢出方塊邊緣 */
+.sendring{position:absolute;inset:0;border-radius:8px;pointer-events:none;opacity:0;
+  box-shadow:0 0 0 1.5px rgba(255,253,248,.7),0 0 46px 14px rgba(255,253,248,.8)}
+.sendring.go{animation:ring 1.5s ease-out 1.05s both}
+@keyframes ring{0%{opacity:0;transform:scale(.98)}15%{opacity:.95}100%{opacity:0;transform:scale(1.32)}}
+@media (prefers-reduced-motion:reduce){.sqwrap.pop{animation:none}.sendring.go{animation-duration:.01s}}
+.rbox{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center;gap:8px;max-width:calc(100% - 32px)}
+.rbox summary{list-style:none;font-size:11px;color:var(--ink-faint);opacity:.45;cursor:pointer;letter-spacing:.1em;padding:4px 10px}
+.rbox summary::-webkit-details-marker{display:none}
+.rbox[open] summary{opacity:.9}
+.rbox summary:focus-visible{outline:2px solid var(--ink);outline-offset:2px;opacity:1}
+
+.research{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;font-size:12px;color:var(--ink-faint)}
+.chip{font:inherit;font-size:12px;background:transparent;border:1px solid var(--line);border-radius:999px;padding:4px 12px;color:var(--ink-dim);cursor:pointer}
+.chip[aria-pressed=true]{background:var(--chip);border-color:var(--ink-dim);color:var(--ink)}
+.chip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.meter{font-variant-numeric:tabular-nums;min-width:5.5em}
+.setup{max-width:360px;margin:0 auto;min-height:100%;box-sizing:border-box;padding-block:14vh 32px;display:flex;flex-direction:column;gap:10px}
+.setup h1{font-family:var(--f-display);font-weight:400;font-size:30px;letter-spacing:.12em;margin:0 0 4px}
+.setup p{margin:0 0 10px;color:var(--ink-dim);line-height:1.7;font-size:14px}
+.lbl{font-size:12px;letter-spacing:.12em;color:var(--ink-faint);margin-top:6px}
+.setup input{font:inherit;font-size:16px;padding:11px 13px;border-radius:10px;border:1px solid var(--line);background:#fbfaf8;color:var(--ink);width:100%;box-sizing:border-box}
+.setup input:focus{outline:2px solid var(--ink-dim);outline-offset:1px}
+.sides{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.side,.go{font:inherit;font-size:15px;padding:11px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink-dim);cursor:pointer}
+.side[aria-pressed=true]{background:#fbfaf8;border-color:var(--ink-dim);color:var(--ink)}
+.go:disabled{opacity:.6;cursor:default}
+.go{margin-top:14px;background:var(--ink);border-color:var(--ink);color:#fbfaf8}
+.side:focus-visible,.go:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.err{color:#a3324a;font-size:13px;margin:0}
+.rbox .research+.research{margin-top:2px}
+.rbox{position:static;transform:none;margin-top:18px}
+.page{justify-content:flex-start;padding-top:32px}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+  // ↓↓↓ 把 Firebase 給你的設定貼在這裡 ↓↓↓
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyAxpxlAYr27jtRJf7Fa_h_eda_37yqP3hU",
+    authDomain: "meanwhile-d5ee9.firebaseapp.com",
+    databaseURL: "https://meanwhile-d5ee9-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "meanwhile-d5ee9",
+    storageBucket: "meanwhile-d5ee9.firebasestorage.app",
+    messagingSenderId: "977200953183",
+    appId: "1:977200953183:web:3d3d9d163fc818c7b928ea"
+  };
+</script>
+</head>
+<body>
+
+<section class="setup" id="setup" hidden>
+  <h1>餘溫</h1>
+  <p>兩個人各自打開這一頁，輸入同一組配對碼就好。</p>
+  <label class="lbl" for="code">配對碼</label>
+  <input type="text" id="code" placeholder="例如 p1-couple" autocomplete="off" autocapitalize="off" spellcheck="false">
+  <p class="err" id="err" hidden></p>
+  <button class="go" id="start">開始</button>
+</section>
+
+<div class="page" id="page" hidden>
+  <div class="sqwrap" id="wrap">
+  <div class="sendring" id="ring" aria-hidden="true"></div>
+  <div class="square grain" id="sq" role="button" tabindex="0" aria-label="對方家裡的聲音顏色；想對方的時候長按這裡"><canvas id="gl" aria-hidden="true"></canvas></div>
+  </div>
+  <p class="sr" id="cap" aria-live="polite"></p>
+  <details class="rbox" open>
+  <summary>預覽控制</summary>
+  <div class="research" aria-label="研究者控制">
+    <button class="chip" data-m="auto" aria-pressed="true">自動</button>
+    <button class="chip" data-m="0.08">安靜</button>
+    <button class="chip" data-m="0.45">講話</button>
+    <button class="chip" data-m="0.9">很吵</button>
+    <span class="meter" id="meter"></span>
+  </div>
+  <div class="research" aria-label="連線">
+    <span class="meter" id="conn"></span>
+    <button class="chip" id="demo1">他現在想你（按 1.5 秒）</button>
+    <button class="chip" id="demo2">他現在想你（按 6 秒）</button>
+  </div>
+  <div class="research">
+    <button class="chip" id="demo3">你睡覺時他想了 3 次</button>
+    <button class="chip" id="demo10">你睡覺時他想了 10 次</button>
+  </div>
+  <div class="research">
+    <button class="chip" id="ff">時間快轉 6 小時</button>
+    <button class="chip" id="clear">清除</button>
+    <span class="meter" id="clock"></span>
+    <button class="chip" id="simRecv" hidden>模擬收到對方的想念</button>
+    <button class="chip" id="leave" hidden>換配對碼</button>
+  </div>
+  </details>
+</div>
+
+<script>
+(() => {
+  /* ---------- 參數 ---------- */
+  // 光團：從方塊外面慢慢流進來，在裡面跟其他光融在一起，然後慢慢淡掉
+  const AURA = [[238,92,168],[172,140,232],[140,198,240],[246,140,118],[172,222,176],[196,96,200],[250,178,150]];
+  const MAX_LIGHTS = 8;
+  const lights = [];
+  let colorIdx = 0, nextSpawn = 2;
+  lights.push({ seed:7.3, from:[0.5,0.55], to:[0.48,0.52], age:9, travel:9, life:40, r0:0.3, r1:0.34, col:AURA[0], ph:0 });
+  colorIdx = 1;
+  const BASE = [253,252,250];                 // 底色：白
+  const HOLD_FULL = 3.0, RELEASE = 1.8;           // 白色按到最濃 / 放手退掉（秒）
+  const RIPPLE_EVERY = 1.5, RIPPLE_LIFE = 8.0;    // 按住時多久發出一圈水波 / 每圈活多久（秒）
+  const RIPPLE_SPEED = 0.085;                     // 水波往外推的速度（方塊寬度／秒），越小越慢
+  const MAX_RIPPLES = 8;
+
+  const clamp01 = x => Math.max(0, Math.min(1, x));
+  const smooth = (a,b,x) => { const t = clamp01((x-a)/(b-a)); return t*t*(3-2*t); };
+  const mix = (a,b,t) => a.map((v,i) => v + (b[i]-v)*t);
+  const gray = c => { const g = (c[0]+c[1]+c[2])/3; return [g,g,g]; };
+  const fakeLevel = s => clamp01(0.28 + 0.22*Math.sin(s/19) + 0.18*Math.sin(s/7.1 + 1.3) + 0.12*Math.sin(s/2.9 + 4));
+
+  /* ---------- 配對 ---------- */
+  const store = {
+    get(k){ try { return localStorage.getItem(k) } catch { return null } },
+    set(k,v){ try { localStorage.setItem(k,v) } catch {} },
+    del(k){ try { localStorage.removeItem(k) } catch {} }
+  };
+  const P = { code:null, side:null, other:null, db:null, room:null, mine:[], seenIds:new Set(), queue:[], playing:0, ready:false };
+  const $ = id => document.getElementById(id);
+  $("code").value = store.get("ywq.code") || "";
+  const clean = v => v.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 32);
+  $("start").onclick = () => {
+    const c = clean($("code").value), err = $("err");
+    if (!c) { err.textContent = "請輸入配對碼（英文字母或數字）。"; err.hidden = false; return; }
+    err.hidden = true;
+    connect(c);
+  };
+  $("leave").onclick = () => { store.del("ywq.code"); location.reload(); };
+
+  const DAY = 24*3600e3;
+  // 牛奶（留下來的想念）的參數
+  const MILK_HALF = 5 * 3600e3;      // 每過 5 小時濃度減半，大約一天後幾乎看不見
+  const MILK_SPREAD = 2 * 3600e3;    // 剛留下時集中在按的位置，2 小時內慢慢化開到整個方塊
+  P.milk = [];                       // 已經「滴進杯子」的想念：{ t, ms, x, y, at }
+  P.clockShift = 0;                  // 預覽用：時間快轉
+  const nowMs = () => Date.now() + P.clockShift;
+  function addMilk(v, at) { P.milk.push({ t: v.t, ms: v.ms || 1500, x: v.x ?? 0.5, y: v.y ?? 0.5, at }); if (P.milk.length > 40) P.milk.shift(); }
+  function milkUniform() {
+    const now = nowMs(), out = [];
+    const live = P.milk.filter(m => now - m.t < 30 * 3600e3).slice(-8);
+    for (const m of live) {
+      const age = Math.max(0, now - m.t);
+      const str = 0.6 + 0.4 * Math.min(1, m.ms / 4000);
+      const melt = m.at ? smooth(0, 6000, performance.now() - m.at) : 1;      // 白光到了之後慢慢化開成牛奶
+      const a = 0.2 * str * Math.pow(0.5, age / MILK_HALF) * melt;
+      const spread = smooth(0, MILK_SPREAD, age);
+      const x = m.x + (0.5 - m.x) * 0.5 * spread, y = m.y + (0.5 - m.y) * 0.5 * spread;
+      out.push(x, y, 0.22 + 0.45 * spread, a);
+    }
+    while (out.length < 32) out.push(0, 0, 1, 0);
+    return out;
+  }
+  const seenKey = () => `ywq.seen.${P.code}.${P.side}`;
+  const ymd = () => { const d = new Date(); return d.getFullYear() + String(d.getMonth()+1).padStart(2,"0") + String(d.getDate()).padStart(2,"0"); };
+  P.sent = 0; P.theirs = 0;
+  function logEvent(type, extra = {}) {
+    if (!P.db) return;
+    P.db.ref(`pairs/${P.code}/log/${P.side}-${ymd()}`).push({ t: new Date().toISOString(), type, ...extra }).catch(() => {});
+  }
+  function updateConn() {
+    if (!P.code) { $("conn").textContent = ""; return; }
+    $("conn").textContent = `${P.code} · 我是 ${P.side} · ${P.db ? "已連線" : (P.err ? "連線失敗（" + P.err + "）" : "連線中…")} · 我送出 ${P.sent} 次${P.lastWrite ? "（上次" + P.lastWrite + "）" : ""} · 對方送來 ${P.theirs} 次`;
+  }
+
+  // 自動分配：第一個用這組配對碼的人是 A，第二個是 B；同一支手機之後再打開，還是原本那個
+  async function claimSide(db, code, uid) {
+    const members = (await db.ref(`pairs/${code}/members`).get()).val() || {};
+    if (members.A === uid) return "A";
+    if (members.B === uid) return "B";
+    for (const slot of ["A", "B"]) {
+      const res = await db.ref(`pairs/${code}/members/${slot}`).transaction(cur => cur == null ? uid : undefined);
+      if (res.snapshot.val() === uid) return slot;
+    }
+    return null;                                             // 已經有兩個人了
+  }
+
+  function setupError(msg) {
+    const err = $("err"), btn = $("start");
+    $("setup").hidden = false; $("page").hidden = true;
+    btn.disabled = false; btn.textContent = "開始";
+    err.textContent = msg; err.hidden = false;
+  }
+
+  async function connect(code) {
+    const btn = $("start");
+    btn.disabled = true; btn.textContent = "連線中…";
+    let db, side;
+    try {
+      if (!window.firebase || !FIREBASE_CONFIG.apiKey || FIREBASE_CONFIG.apiKey.startsWith("貼上")) throw { code: "還沒填 Firebase 設定" };
+      if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+      const cred = await firebase.auth().signInAnonymously();  // 受測者不用註冊，背後自動拿一個匿名身分
+      db = firebase.database();
+      side = await claimSide(db, code, cred.user.uid);
+    } catch (e) {
+      setupError("連不上，請確認網路後再試一次。（" + ((e && (e.code || e.message)) || "unknown") + "）");
+      return;
+    }
+    if (!side) {
+      store.del("ywq.code");
+      setupError("這組配對碼已經有兩個人在用了，請確認有沒有打錯，或換一組新的。");
+      return;
+    }
+    store.set("ywq.code", code);
+    P.code = code; P.side = side; P.other = side === "A" ? "B" : "A"; P.db = db;
+    $("setup").hidden = true; $("page").hidden = false;
+    updateConn();
+    // 我自己送出過幾次
+    P.db.ref(`pairs/${code}/sends/${side}`).limitToLast(40).on("child_added", () => { P.sent++; updateConn(); });
+    // 對方送來的：舊的（我上次打開之後、24 小時內）排隊一個一個播；新的即時播
+    P.db.ref(`pairs/${code}/sends/${P.other}`).limitToLast(40).on("child_added", snap => {
+      const v = snap.val();
+      if (!v || typeof v.t !== "number" || P.seenIds.has(snap.key)) return;
+      P.seenIds.add(snap.key); P.theirs++; updateConn();
+      const last = Number(store.get(seenKey())) || 0;
+      if (v.t > last && Date.now() - v.t < DAY) P.queue.push(v); else addMilk(v, 0);
+    }, e => { P.err = e && e.code; updateConn(); });
+    updateConn();
+    logEvent("open");
+  }
+
+  // 我送出一次想念：寫進 Firebase，對方開著就即時收到，不在的話下次打開時收到
+  function sendMiss(x, y, ms) {
+    if (!P.db) return;
+    const v = { side: P.side, t: Date.now(), ms: Math.round(ms), x: +x.toFixed(3), y: +y.toFixed(3) };
+    P.db.ref(`pairs/${P.code}/sends/${P.side}`).push(v)
+      .then(() => { P.lastWrite = "成功"; updateConn(); })
+      .catch(e => { P.lastWrite = "失敗（" + (e && e.code || "unknown") + "）"; updateConn(); });
+    logEvent("send", { ms: v.ms });
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) P.playing = Math.min(P.playing, 1.2); });
+
+  /* ---------- 研究者控制 ---------- */
+  let mode = "auto";
+  document.querySelectorAll(".chip[data-m]").forEach(b => b.addEventListener("click", () => {
+    mode = b.dataset.m;
+    document.querySelectorAll(".chip[data-m]").forEach(c => c.setAttribute("aria-pressed", c === b));
+  }));
+
+  /* ---------- 長按 ---------- */
+  const sq = document.getElementById("sq"), cap = document.getElementById("cap"), meter = document.getElementById("meter");
+  const wrap = document.getElementById("wrap"), ring = document.getElementById("ring");
+  const hold = { on:false, t:0, x:.5, y:.5, w:0, next:0 };
+  const ripples = [];
+  // 送出：放手 → 白光往中心收（0.4 秒）→ 方塊彈一下＋手機短震 → 一圈大水波推出方塊邊緣
+  const GATHER = 0.4, MIN_HOLD = 0.3;
+  const send = { t:-1, x:.5, y:.5, w0:0, r0:0 };
+  const restart = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
+  function down(e) {
+    if (hold.on) return;
+    const r = sq.getBoundingClientRect();
+    if (e && e.clientX != null) { hold.x = (e.clientX - r.left) / r.width; hold.y = (e.clientY - r.top) / r.height; }
+    else { hold.x = .5; hold.y = .5; }
+    hold.on = true; hold.t = 0; hold.next = 0; sq.classList.add("held");
+    if (navigator.vibrate) try { navigator.vibrate(12) } catch {}
+  }
+  function up() {
+    if (!hold.on) return;
+    hold.on = false; sq.classList.remove("held");
+    if (hold.t >= MIN_HOLD) { send.t = 0; send.x = hold.x; send.y = hold.y; send.w0 = hold.w; send.r0 = 0.08 + 0.32*hold.w; send.ms = hold.t*1000; }
+  }
+  sq.addEventListener("pointerdown", e => { e.preventDefault(); try { sq.setPointerCapture(e.pointerId) } catch {} down(e); });
+  ["pointerup","pointercancel","lostpointercapture"].forEach(t => sq.addEventListener(t, up));
+  sq.addEventListener("contextmenu", e => e.preventDefault());
+  sq.addEventListener("keydown", e => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); down(); } });
+  sq.addEventListener("keyup", e => { if (e.key === " " || e.key === "Enter") up(); });
+
+  /* ---------- WebGL：顏色場 + 水波折射 + 顆粒 ---------- */
+  const canvas = document.getElementById("gl");
+  let gl = null, prog, U = {};
+  const FRAG = `
+precision highp float;
+uniform vec2 uRes; uniform float uTime; uniform float uFlow; uniform float uAgit;
+uniform vec4 uLight[8]; uniform vec3 uLCol[8]; uniform float uSeed[8];
+uniform vec3 uBase;
+uniform vec4 uRip[${MAX_RIPPLES}];   // x, y, radius, strength
+uniform vec4 uHold;                   // x, y, white amount, white radius
+uniform vec4 uMilk[8];                // 留下來的想念：x, y, 範圍, 濃度
+float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
+float vnoise(vec2 p){
+  vec2 i = floor(p), f = fract(p);
+  vec2 u = f*f*(3.0-2.0*f);
+  return mix(mix(hash(i), hash(i+vec2(1.,0.)), u.x), mix(hash(i+vec2(0.,1.)), hash(i+vec2(1.,1.)), u.x), u.y);
+}
+float fbm(vec2 p){
+  float v = 0.0, a = 0.5;
+  for (int i = 0; i < 4; i++) { v += a * vnoise(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; }
+  return v;
+}
+// 光團融合：每團光是一個柔軟、邊緣會慢慢變形的光暈；重疊的地方顏色像顏料一樣混在一起
+vec3 field(vec2 p){
+  float t = uFlow;
+  vec3 sum = vec3(0.0); float wsum = 1e-4, W = 0.0;
+  for (int i = 0; i < 8; i++) {
+    vec4 L = uLight[i];
+    if (L.w <= 0.001) continue;
+    float fi = uSeed[i];                      // 每團光自己固定的亂數，不會因為別的光消失而改變
+    // 邊緣變形：平穩的粗紋路和躁動的細紋路，依吵鬧程度慢慢交叉混合（頻率本身不變，切換時才不會整片亂跳）
+    vec2 wSoft = vec2(vnoise(p*2.2 + vec2(fi*3.1, t*0.18)), vnoise(p*2.2 + vec2(t*0.15, fi*5.7))) - 0.5;
+    vec2 wBusy = vec2(vnoise(p*4.0 + vec2(fi*1.7, t*0.30)), vnoise(p*4.0 + vec2(t*0.27, fi*2.9))) - 0.5;
+    vec2 warp = mix(wSoft, wBusy, uAgit);
+    vec2 d = (p + warp * (0.16 + 0.26 * uAgit) - L.xy) / L.z;
+    float w = L.w * exp(-dot(d, d) * 1.6);
+    sum += uLCol[i] * w * w; wsum += w * w; W += w;      // 平方：哪團光比較濃，那裡就比較偏它的顏色
+  }
+  vec3 c = mix(uBase, sum / wsum, smoothstep(0.0, 0.75, W));
+  // 光團邊緣一圈淡淡的虹彩
+  float band = exp(-pow((W - 0.30) / 0.2, 2.0));
+  float h = fract(W * 1.8 + p.y * 0.6 + t * 0.03);
+  vec3 rainbow = clamp(abs(mod(h*6.0 + vec3(0.0,4.0,2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+  c = mix(c, mix(c, rainbow, 0.5), band * 0.13);
+  float hd = length(p - uHold.xy);
+  float wr = max(uHold.w, 0.005);
+  float g = uHold.z * (1.0 - smoothstep(0.0, wr, hd));
+  // 牛奶：每次想念留下一層淡淡的白，次數越多越白，慢慢散開、慢慢淡掉
+  float milk = 0.0;
+  for (int i = 0; i < 8; i++) {
+    vec4 M = uMilk[i];
+    if (M.w <= 0.001) continue;
+    vec2 md = (p - M.xy) / M.z;
+    milk += M.w * exp(-dot(md, md) * 1.1);
+  }
+  milk = 1.0 - exp(-milk * 1.3);
+  c = mix(c, vec3(1.0, 0.995, 0.985), milk * 0.62);
+  return mix(c, vec3(1.0, 0.993, 0.975), clamp(g * 1.1, 0.0, 1.0));
+}
+void main(){
+  vec2 p = vec2(gl_FragCoord.x / uRes.x, 1.0 - gl_FragCoord.y / uRes.y);
+  vec2 disp = vec2(0.0); float slope = 0.0;
+  for (int i = 0; i < ${MAX_RIPPLES}; i++) {
+    vec4 r = uRip[i];
+    if (r.w <= 0.0) continue;
+    vec2 dv = p - r.xy; float dist = length(dv) + 1e-4;
+    float x = dist - r.z;                       // 離波前多遠（負數＝已經走過）
+    float w = 0.11;
+    float env = exp(-(x*x) / (w*w)) * step(-0.35, x);
+    float k = 34.0;
+    float amp = r.w / (1.0 + dist * 2.5);
+    float dh = amp * env * (k * cos(x * k) - 2.0 * x / (w*w) * sin(x * k));
+    vec2 dir = dv / dist;
+    disp += dir * dh;
+    slope += dot(dir, normalize(vec2(-0.55, -0.85))) * dh;
+  }
+  // 折射：三個色版各偏一點，邊緣會帶一點虹彩
+  vec2 q = p + disp * 0.0045;
+  vec3 col = field(q);
+  if (dot(disp, disp) > 1e-6) {               // 只有水波經過的地方才多算兩次做色差，平常省下三分之二的運算
+    col.r = field(q + disp * 0.0009).r;
+    col.b = field(q - disp * 0.0009).b;
+  }
+  // 波峰亮、波谷暗
+  float s = slope * 0.045;
+  col += vec3(1.0) * smoothstep(0.08, 0.8, s) * 0.8;
+  col = mix(col, vec3(0.08, 0.20, 0.24), smoothstep(0.08, 1.0, -s) * 0.6);
+  // 顆粒
+  float n = hash(gl_FragCoord.xy + floor(uTime * 14.0) * 17.0);
+  float n2 = hash(gl_FragCoord.yx * 1.3 + floor(uTime * 14.0));
+  col += (n - 0.5) * 0.07;
+  col += (vec3(n2, hash(gl_FragCoord.xy + 3.1), n) - 0.5) * 0.02;
+  gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+}`;
+  try {
+    gl = canvas.getContext("webgl", { antialias:false, premultipliedAlpha:false });
+    if (gl) {
+      const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+      prog = gl.createProgram();
+      gl.attachShader(prog, sh(gl.VERTEX_SHADER, "attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}"));
+      gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FRAG));
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+      gl.useProgram(prog);
+      const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+      const loc = gl.getAttribLocation(prog, "a"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+      for (const n of ["uRes","uTime","uFlow","uAgit","uLight","uLCol","uSeed","uBase","uRip","uHold","uMilk"]) U[n] = gl.getUniformLocation(prog, n);
+      sq.classList.add("webgl");
+    }
+  } catch (err) { console.warn("WebGL off:", err && err.message); gl = null; }
+  if (!gl) canvas.hidden = true;
+
+  function resize() {
+    if (!gl) return;
+    const r = sq.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 1);   // 光本來就是柔的，不用高解析度，手機比較順
+    const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; gl.viewport(0, 0, w, h); }
+  }
+
+  /* ---------- 每一幀 ---------- */
+  let level = 0, phase = 0, last = 0, lastCap = "", flowT = 0;
+  function frame(ts) {
+    const s = ts / 1000, dt = Math.min(0.1, (ts - (last || ts)) / 1000); last = ts;
+    const target = mode === "auto" ? fakeLevel(s) : Number(mode);
+    level += (target - level) * Math.min(1, dt * 1.5);
+    phase += dt * 2*Math.PI / (6.5 - 4.7*level);      // 呼吸：安靜約 6.5 秒、講話約 4.4 秒、很吵約 2 秒
+    flowT += dt * (0.08 + 0.9*level*level);          // 越吵流得越快（講話還算平穩，很吵才明顯加速）
+    const breath = 0.5 - 0.5*Math.cos(phase);
+
+    // 越吵：光流進來得越頻繁、同時存在越多團、顏色越飽和
+    const want = 1 + Math.round(Math.pow(level, 1.5) * 7);  // 安靜 1 團、講話約 3 團、很吵 7 團
+    const active = () => lights.filter(l => !l.leaving && !l.white).length;
+    nextSpawn -= dt;
+    if (nextSpawn <= 0 && active() < want && lights.length < MAX_LIGHTS) {
+      const side = Math.floor(Math.random() * 4), u = 0.15 + Math.random() * 0.7;
+      const o = 0.35 - 0.25*level;                          // 越吵，光從越靠近邊緣的地方冲進來
+      const from = [[u, -o], [1 + o, u], [u, 1 + o], [-o, u]][side];
+      const to = [0.3 + Math.random()*0.4, 0.3 + Math.random()*0.4];
+      lights.push({ from, to, age:0, travel: 9 + Math.random()*6, life: 26 + Math.random()*14,
+                    seed: Math.random()*50, r0: 0.16 + Math.random()*0.06, r1: 0.30 + Math.random()*0.12, col: AURA[colorIdx++ % AURA.length], ph: Math.random()*6.28 });
+      nextSpawn = 10 - 8.6*level + Math.random()*1.5;       // 安靜約 10 秒來一團，講話約 6 秒，很吵 1~2 秒
+    }
+    // 收到對方的想念：一團白光從邊緣流進來，到了就擴散出水波，之後慢慢淡掉
+    if (P.playing > 0) P.playing -= dt;
+    if (P.queue.length && P.playing <= 0 && !document.hidden) {
+      const v = P.queue.shift();
+      const str = clamp01((v.ms || 1500) / 3000) * 0.6 + 0.4;
+      const tx = Math.min(0.8, Math.max(0.2, v.x ?? 0.5)), ty = Math.min(0.8, Math.max(0.2, v.y ?? 0.5));
+      const side = Math.floor(Math.random() * 4), u = 0.2 + Math.random() * 0.6;
+      const from = [[u, -0.3], [1.3, u], [u, 1.3], [-0.3, u]][side];
+      while (lights.length >= MAX_LIGHTS) { const i = lights.findIndex(l => !l.white); lights.splice(i < 0 ? 0 : i, 1); }
+      const nRip = Math.max(1, Math.min(5, Math.round((v.ms || 1500) / 1500)));
+      lights.push({ white:true, str, v, nRip, ripplesLeft:nRip, from, to:[tx, ty], age:0, travel:3.4, life:14, seed: Math.random()*50,
+                    r0:0.10, r1:0.20 + 0.12*str, col:[255,253,248], ph: Math.random()*6.28 });
+      P.playing = 3.8 + 0.9 * (nRip - 1);
+      store.set(seenKey(), String(Math.max(v.t, Number(store.get(seenKey())) || 0)));
+      logEvent("receive", { ms: v.ms || 0, late: Date.now() - v.t > 120e3 });
+    }
+    for (let i = lights.length - 1; i >= 0; i--) {
+      const L = lights[i];
+      if (L.white) {
+        L.age += dt;
+        // 到了：對方按多久，就發出差不多圈數的水波（每 1.5 秒一圈，最多 5 圈）
+        while (L.ripplesLeft > 0 && L.age >= L.travel + (L.nRip - L.ripplesLeft) * 0.9) {
+          const first = L.ripplesLeft === L.nRip;
+          ripples.push({ x:L.to[0], y:L.to[1], age:0, k:(first ? 1.25 : 0.9) * L.str, sp: first ? 0.13 : 0.1, life:7 });
+          if (ripples.length > MAX_RIPPLES) ripples.shift();
+          if (first) { addMilk(L.v, performance.now()); if (navigator.vibrate) try { navigator.vibrate(18) } catch {} }
+          L.ripplesLeft--;
+        }
+        if (L.age >= L.life) lights.splice(i, 1);
+        continue;
+      }
+      L.age += dt * (0.7 + 2.0*level*level);   // 越吵，光流進來、淡掉都越快
+      if (active() > want + 1 && !L.leaving && L.age > L.travel) { L.leaving = true; L.life = Math.min(L.life, L.age + 8); }
+      if (L.age >= L.life) lights.splice(i, 1);
+    }
+    const blobs = lights.slice(0, MAX_LIGHTS).map(L => {
+      const k = smooth(0, 1, L.age / L.travel);             // 從外面慢慢流到裡面
+      L.dph = (L.dph || 0) + dt * (0.2 + 0.9*level);       // 晃動的相位用累加的，切換音量時才不會突然甩動
+      const drift = (0.03 + 0.07*level) * Math.sin(L.dph + L.ph);
+      const x = L.from[0] + (L.to[0] - L.from[0]) * k + drift, y = L.from[1] + (L.to[1] - L.from[1]) * k - drift;
+      const fadeIn = smooth(0, 3, L.age), fadeOut = 1 - smooth(L.life - 7, L.life, L.age);
+      const own = 0.5 - 0.5*Math.cos(phase + L.ph);
+      const a = L.white ? smooth(0, 1.2, L.age) * (1 - smooth(L.travel + 1.5, L.life, L.age)) * (0.9 + 0.3*L.str) * (0.9 + 0.1*own)
+              : fadeIn * fadeOut * (0.85 - 0.3*level + (0.2 + 0.55*level)*own) * (0.6 + 0.6*level);
+      const c = L.white ? L.col : mix(gray(L.col), L.col, Math.min(1, 0.4 + 0.65*level));   // 安靜偏灰、講話柔和、很吵最鮮豔
+      const rr = L.white ? (L.r0 + (L.r1 - L.r0) * k) * (1 + 0.5*smooth(L.travel, L.travel + 4, L.age))
+                         : (L.r0 + (L.r1 - L.r0) * k) * (0.92 + 0.12*breath) * (1.15 - 0.3*level);
+      return { x: L.white ? L.from[0] + (L.to[0] - L.from[0]) * k : x, y: L.white ? L.from[1] + (L.to[1] - L.from[1]) * k : y, r: rr, c, a, seed: L.seed };
+    });
+    while (blobs.length < MAX_LIGHTS) blobs.push({ x:0, y:0, r:1, c:[0,0,0], a:0, seed:0 });
+
+    // 白色
+    if (hold.on) { hold.t += dt; hold.w = Math.max(hold.w, 1 - Math.pow(1 - clamp01(hold.t / HOLD_FULL), 2)); }
+    else if (send.t < 0) hold.w = Math.max(0, hold.w - dt / RELEASE);
+    let whiteR = 0.08 + 0.32*hold.w;
+    if (send.t >= 0) {
+      send.t += dt;
+      if (send.t < GATHER) {                                   // 收成一個小光點
+        const e = smooth(0, 1, send.t / GATHER);
+        hold.w = send.w0 + (1 - send.w0) * e;
+        whiteR = send.r0 + (0.03 - send.r0) * e;
+      } else {
+        if (!send.popped) {                                    // 咻：送出去
+          send.popped = true;
+          restart(wrap, "pop"); restart(ring, "go");
+          if (navigator.vibrate) try { navigator.vibrate([12, 50, 22]) } catch {}
+          ripples.push({ x:send.x, y:send.y, age:0, k:1.7, sp:0.34, life:2.6 });
+          if (ripples.length > MAX_RIPPLES) ripples.shift();
+          cap.textContent = "送出去了";                        // 只給螢幕閱讀器
+          sendMiss(send.x, send.y, send.ms);
+        }
+        const f = clamp01((send.t - GATHER) / 0.18);
+        hold.w = (1 - f); whiteR = 0.03 + 0.06*f;
+        if (f >= 1) { hold.w = 0; send.t = -1; send.popped = false; }
+      }
+    }
+    // 水波：按住時定時從手指位置發出，慢慢往外推，越外面越弱
+    if (hold.on && hold.t >= hold.next) {
+      ripples.push({ x:hold.x, y:hold.y, age:0, k:0.55 + 0.45*hold.w });
+      if (ripples.length > MAX_RIPPLES) ripples.shift();
+      hold.next += RIPPLE_EVERY;
+    }
+    for (let i = ripples.length - 1; i >= 0; i--) { ripples[i].age += dt; if (ripples[i].age >= (ripples[i].life || RIPPLE_LIFE)) ripples.splice(i, 1); }
+
+    if (gl) {
+      resize();
+      gl.uniform2f(U.uRes, canvas.width, canvas.height);
+      gl.uniform1f(U.uTime, s); gl.uniform1f(U.uFlow, flowT); gl.uniform1f(U.uAgit, level*level);
+      gl.uniform4fv(U.uLight, blobs.flatMap(b => [b.x, b.y, b.r, b.a]));
+      gl.uniform3fv(U.uLCol, blobs.flatMap(b => b.c.map(v => v/255)));
+      gl.uniform1fv(U.uSeed, blobs.map(b => b.seed));
+      gl.uniform3fv(U.uBase, BASE.map(v => v/255));
+      const rp = [];
+      for (let i = 0; i < MAX_RIPPLES; i++) {
+        const r = ripples[i];
+        if (!r) { rp.push(0,0,0,0); continue; }
+        const life = r.age / (r.life || RIPPLE_LIFE);
+        rp.push(r.x, r.y, 0.02 + r.age * (r.sp || RIPPLE_SPEED), r.k * Math.pow(1 - life, 1.4) * smooth(0, r.sp ? 0.15 : 0.6, r.age));
+      }
+      gl.uniform4fv(U.uRip, rp);
+      gl.uniform4f(U.uHold, send.t >= 0 ? send.x : hold.x, send.t >= 0 ? send.y : hold.y, hold.w, whiteR);
+      gl.uniform4fv(U.uMilk, milkUniform());
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    } else {
+      // 沒有 WebGL 時的備用畫法（只有顏色和白色，沒有折射）
+      const layers = blobs.filter(b => b.a > 0).map(b => {
+        const c = b.c.map(Math.round).join(","), R = b.r * 180;
+        return `radial-gradient(circle at ${(b.x*100).toFixed(1)}% ${(b.y*100).toFixed(1)}%, rgba(${c},${b.a.toFixed(3)}) 0%, rgba(${c},${(b.a*0.6).toFixed(3)}) ${(R*0.5).toFixed(0)}%, rgba(${c},0) ${R.toFixed(0)}%)`;
+      });
+      if (hold.w > 0.001) {
+        const wr = Math.max(3, whiteR * 160);
+        layers.push(`radial-gradient(circle at ${(hold.x*100).toFixed(1)}% ${(hold.y*100).toFixed(1)}%, rgba(255,253,248,${Math.min(1, 0.25 + 0.75*hold.w).toFixed(3)}) 0%, rgba(255,253,248,0) ${wr.toFixed(0)}%)`);
+      }
+      sq.style.background = layers.reverse().join(",") + `, rgb(${BASE.join(",")})`;
+    }
+
+    meter.textContent = `音量 ${Math.round(level*100)}%`;
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  $("simRecv").onclick = () => P.queue.push({ id: "sim" + Date.now(), side: P.other, t: Date.now(), ms: 2600, x: 0.3 + Math.random()*0.4, y: 0.3 + Math.random()*0.4 });
+  // ---- 預覽模式：不連線，直接用按鈕模擬 ----
+  $("setup").hidden = true; $("page").hidden = false; P.other = "B"; P.side = "A";
+  const rnd = () => 0.3 + Math.random() * 0.4;
+  const fake = (t, ms) => ({ id: "demo" + Math.random(), side: "B", t, ms, x: rnd(), y: rnd() });
+  $("demo1").onclick = () => P.queue.push(fake(nowMs(), 1500));
+  $("demo2").onclick = () => P.queue.push(fake(nowMs(), 6000));
+  const night = n => { const now = nowMs(); for (let i = 0; i < n; i++) P.queue.push(fake(now - (8 - 7.5 * i / Math.max(1, n - 1)) * 3600e3, 1500 + Math.random() * 3000)); };
+  $("demo3").onclick = () => night(3);
+  $("demo10").onclick = () => night(10);
+  $("ff").onclick = () => { P.clockShift += 6 * 3600e3; };
+  $("clear").onclick = () => { P.milk = []; P.queue = []; P.clockShift = 0; };
+  setInterval(() => { $("clock").textContent = P.clockShift ? `已快轉 ${P.clockShift / 3600e3} 小時` : ""; }, 500);
+})();
+</script>
+
+</body>
+</html>
