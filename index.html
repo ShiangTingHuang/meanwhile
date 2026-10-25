@@ -158,6 +158,29 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
   $("leave").onclick = () => { store.del("ywq.code"); location.reload(); };
 
   const DAY = 24*3600e3;
+  // 牛奶（留下來的想念）的參數
+  const MILK_HALF = 5 * 3600e3;      // 每過 5 小時濃度減半，大約一天後幾乎看不見
+  const MILK_SPREAD = 2 * 3600e3;    // 剛留下時集中在按的位置，2 小時內慢慢化開到整個方塊
+  P.milk = [];                       // 已經「滴進杯子」的想念：{ t, ms, x, y, at }
+  P.backlog = []; P.backlogAt = 0;   // 我不在時累積的想念，打開時合成一個大漣漪
+  P.clockShift = 0;                  // 預覽用：時間快轉
+  const nowMs = () => Date.now() + P.clockShift;
+  function addMilk(v, at) { P.milk.push({ t: v.t, ms: v.ms || 1500, x: v.x ?? 0.5, y: v.y ?? 0.5, at }); if (P.milk.length > 40) P.milk.shift(); }
+  function milkUniform() {
+    const now = nowMs(), out = [];
+    const live = P.milk.filter(m => now - m.t < 30 * 3600e3).slice(-8);
+    for (const m of live) {
+      const age = Math.max(0, now - m.t);
+      const str = 0.6 + 0.4 * Math.min(1, m.ms / 4000);
+      const melt = m.at ? smooth(0, 6000, performance.now() - m.at) : 1;      // 白光到了之後慢慢化開成牛奶
+      const a = 0.2 * str * Math.pow(0.5, age / MILK_HALF) * melt;
+      const spread = smooth(0, MILK_SPREAD, age);
+      const x = m.x + (0.5 - m.x) * 0.5 * spread, y = m.y + (0.5 - m.y) * 0.5 * spread;
+      out.push(x, y, 0.22 + 0.45 * spread, a);
+    }
+    while (out.length < 32) out.push(0, 0, 1, 0);
+    return out;
+  }
   const seenKey = () => `ywq.seen.${P.code}.${P.side}`;
   const ymd = () => { const d = new Date(); return d.getFullYear() + String(d.getMonth()+1).padStart(2,"0") + String(d.getDate()).padStart(2,"0"); };
   P.sent = 0; P.theirs = 0;
@@ -220,7 +243,10 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
       if (!v || typeof v.t !== "number" || P.seenIds.has(snap.key)) return;
       P.seenIds.add(snap.key); P.theirs++; updateConn();
       const last = Number(store.get(seenKey())) || 0;
-      if (v.t > last && Date.now() - v.t < DAY) P.queue.push(v);
+      // 我不在時累積的，合成一個大漣漪；剛剛才送的，照常一個一個即時播
+      if (v.t > last && Date.now() - v.t < DAY) {
+        if (Date.now() - v.t > 90e3) { P.backlog.push(v); P.backlogAt = performance.now(); } else P.queue.push(v);
+      } else addMilk(v, 0);
     }, e => { P.err = e && e.code; updateConn(); });
     updateConn();
     logEvent("open");
@@ -282,6 +308,7 @@ uniform vec4 uLight[8]; uniform vec3 uLCol[8]; uniform float uSeed[8];
 uniform vec3 uBase;
 uniform vec4 uRip[${MAX_RIPPLES}];   // x, y, radius, strength
 uniform vec4 uHold;                   // x, y, white amount, white radius
+uniform vec4 uMilk[8];                // 留下來的想念：x, y, 範圍, 濃度
 float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
 float vnoise(vec2 p){
   vec2 i = floor(p), f = fract(p);
@@ -318,6 +345,16 @@ vec3 field(vec2 p){
   float hd = length(p - uHold.xy);
   float wr = max(uHold.w, 0.005);
   float g = uHold.z * (1.0 - smoothstep(0.0, wr, hd));
+  // 牛奶：每次想念留下一層淡淡的白，次數越多越白，慢慢散開、慢慢淡掉
+  float milk = 0.0;
+  for (int i = 0; i < 8; i++) {
+    vec4 M = uMilk[i];
+    if (M.w <= 0.001) continue;
+    vec2 md = (p - M.xy) / M.z;
+    milk += M.w * exp(-dot(md, md) * 1.1);
+  }
+  milk = 1.0 - exp(-milk * 1.3);
+  c = mix(c, vec3(1.0, 0.995, 0.985), milk * 0.62);
   return mix(c, vec3(1.0, 0.993, 0.975), clamp(g * 1.1, 0.0, 1.0));
 }
 void main(){
@@ -368,7 +405,7 @@ void main(){
       const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
       const loc = gl.getAttribLocation(prog, "a"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-      for (const n of ["uRes","uTime","uFlow","uAgit","uLight","uLCol","uSeed","uBase","uRip","uHold"]) U[n] = gl.getUniformLocation(prog, n);
+      for (const n of ["uRes","uTime","uFlow","uAgit","uLight","uLCol","uSeed","uBase","uRip","uHold","uMilk"]) U[n] = gl.getUniformLocation(prog, n);
       sq.classList.add("webgl");
     }
   } catch (err) { console.warn("WebGL off:", err && err.message); gl = null; }
@@ -406,6 +443,17 @@ void main(){
     }
     // 收到對方的想念：一團白光從邊緣流進來，到了就擴散出水波，之後慢慢淡掉
     if (P.playing > 0) P.playing -= dt;
+    // 累積的想念：中間慢慢亮起一團白，再擴散出一個大漣漪；次數越多越大、越慢、越久
+    if (P.backlog.length && !document.hidden && performance.now() - P.backlogAt > 800) {
+      const list = P.backlog.splice(0), n = list.length, k = Math.min(n, 10) / 10;
+      const avg = (key) => list.reduce((a, v) => a + (v[key] ?? 0.5), 0) / n;
+      const cx = Math.min(0.68, Math.max(0.32, avg("x"))), cy = Math.min(0.68, Math.max(0.32, avg("y")));
+      while (lights.length >= MAX_LIGHTS) { const i = lights.findIndex(l => !l.white); lights.splice(i < 0 ? 0 : i, 1); }
+      lights.push({ white:true, catchup:true, list, k, str: 0.6 + 0.4*k, from:[cx, cy], to:[cx, cy], age:0, travel:2.4, life: 11 + 7*k,
+                    seed: Math.random()*50, r0:0.04, r1:0.22 + 0.2*k, col:[255,253,248], ph: Math.random()*6.28, nRip:0, ripplesLeft:0 });
+      store.set(seenKey(), String(Math.max(...list.map(v => v.t), Number(store.get(seenKey())) || 0)));
+      logEvent("catch_up", { n });
+    }
     if (P.queue.length && P.playing <= 0 && !document.hidden) {
       const v = P.queue.shift();
       const str = clamp01((v.ms || 1500) / 3000) * 0.6 + 0.4;
@@ -413,9 +461,10 @@ void main(){
       const side = Math.floor(Math.random() * 4), u = 0.2 + Math.random() * 0.6;
       const from = [[u, -0.3], [1.3, u], [u, 1.3], [-0.3, u]][side];
       while (lights.length >= MAX_LIGHTS) { const i = lights.findIndex(l => !l.white); lights.splice(i < 0 ? 0 : i, 1); }
-      lights.push({ white:true, str, from, to:[tx, ty], age:0, travel:3.4, life:20, seed: Math.random()*50,
+      const nRip = Math.max(1, Math.min(5, Math.round((v.ms || 1500) / 1500)));
+      lights.push({ white:true, str, v, nRip, ripplesLeft:nRip, from, to:[tx, ty], age:0, travel:3.4, life:14, seed: Math.random()*50,
                     r0:0.10, r1:0.20 + 0.12*str, col:[255,253,248], ph: Math.random()*6.28 });
-      P.playing = 3.8;
+      P.playing = 3.8 + 0.9 * (nRip - 1);
       store.set(seenKey(), String(Math.max(v.t, Number(store.get(seenKey())) || 0)));
       logEvent("receive", { ms: v.ms || 0, late: Date.now() - v.t > 120e3 });
     }
@@ -423,11 +472,20 @@ void main(){
       const L = lights[i];
       if (L.white) {
         L.age += dt;
-        if (!L.rippled && L.age >= L.travel) {
-          L.rippled = true;
-          ripples.push({ x:L.to[0], y:L.to[1], age:0, k:1.25*L.str, sp:0.13, life:7 });
+        if (L.catchup && !L.done && L.age >= L.travel) {
+          L.done = true;
+          ripples.push({ x:L.to[0], y:L.to[1], age:0, k: 1.1 + 1.3*L.k, sp: 0.075 - 0.03*L.k, life: 7 + 8*L.k });
           if (ripples.length > MAX_RIPPLES) ripples.shift();
-          if (navigator.vibrate) try { navigator.vibrate(18) } catch {}
+          L.list.forEach(v => addMilk(v, performance.now()));
+          if (navigator.vibrate) try { navigator.vibrate(30) } catch {}
+        }
+        // 到了：對方按多久，就發出差不多圈數的水波（每 1.5 秒一圈，最多 5 圈）
+        while (L.ripplesLeft > 0 && L.age >= L.travel + (L.nRip - L.ripplesLeft) * 0.9) {
+          const first = L.ripplesLeft === L.nRip;
+          ripples.push({ x:L.to[0], y:L.to[1], age:0, k:(first ? 1.25 : 0.9) * L.str, sp: first ? 0.13 : 0.1, life:7 });
+          if (ripples.length > MAX_RIPPLES) ripples.shift();
+          if (first) { addMilk(L.v, performance.now()); if (navigator.vibrate) try { navigator.vibrate(18) } catch {} }
+          L.ripplesLeft--;
         }
         if (L.age >= L.life) lights.splice(i, 1);
         continue;
@@ -443,7 +501,7 @@ void main(){
       const x = L.from[0] + (L.to[0] - L.from[0]) * k + drift, y = L.from[1] + (L.to[1] - L.from[1]) * k - drift;
       const fadeIn = smooth(0, 3, L.age), fadeOut = 1 - smooth(L.life - 7, L.life, L.age);
       const own = 0.5 - 0.5*Math.cos(phase + L.ph);
-      const a = L.white ? smooth(0, 1.2, L.age) * (1 - smooth(L.life - 12, L.life, L.age)) * (0.9 + 0.3*L.str) * (0.9 + 0.1*own)
+      const a = L.white ? smooth(0, L.catchup ? L.travel : 1.2, L.age) * (1 - smooth(L.travel + 1.5, L.life, L.age)) * (0.9 + 0.3*L.str) * (0.9 + 0.1*own)
               : fadeIn * fadeOut * (0.85 - 0.3*level + (0.2 + 0.55*level)*own) * (0.6 + 0.6*level);
       const c = L.white ? L.col : mix(gray(L.col), L.col, Math.min(1, 0.4 + 0.65*level));   // 安靜偏灰、講話柔和、很吵最鮮豔
       const rr = L.white ? (L.r0 + (L.r1 - L.r0) * k) * (1 + 0.5*smooth(L.travel, L.travel + 4, L.age))
@@ -502,6 +560,7 @@ void main(){
       }
       gl.uniform4fv(U.uRip, rp);
       gl.uniform4f(U.uHold, send.t >= 0 ? send.x : hold.x, send.t >= 0 ? send.y : hold.y, hold.w, whiteR);
+      gl.uniform4fv(U.uMilk, milkUniform());
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     } else {
       // 沒有 WebGL 時的備用畫法（只有顏色和白色，沒有折射）
