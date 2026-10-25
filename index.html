@@ -458,6 +458,7 @@ void main(){
   function frame(ts) {
     const s = ts / 1000, dt = Math.min(0.1, (ts - (last || ts)) / 1000); last = ts;
     const target = mode === "auto" ? fakeLevel(s) : Number(mode);
+    if (!frame.started) { frame.started = true; level = target; }   // 一打開就是當下的音量，不會從 0 慢慢爬（避免多記一筆聲音改變）
     level += (target - level) * Math.min(1, dt * 1.5);
     phase += dt * 2*Math.PI / (6.5 - 4.7*level);      // 呼吸：安靜約 6.5 秒、講話約 4.4 秒、很吵約 2 秒
     flowT += dt * (0.08 + 0.9*level*level);          // 越吵流得越快（講話還算平穩，很吵才明顯加速）
