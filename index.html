@@ -90,11 +90,17 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
 @media (prefers-reduced-motion:reduce){.ill i{animation:none!important}.p4haze{opacity:.8}.p2glow,.p3haze{opacity:.7}.p2ring,.p3ring{opacity:0}.p3light{opacity:0}}
 
 .me{width:min(78vw,420px);max-width:100%;display:flex;flex-direction:column;align-items:flex-end;gap:8px;margin-top:-8px}
-.dots{font:inherit;font-size:20px;line-height:1;letter-spacing:.1em;background:none;border:none;color:var(--ink-faint);opacity:.55;cursor:pointer;padding:6px 8px;border-radius:8px}
+.dots{margin-left:auto;font:inherit;font-size:20px;line-height:1;letter-spacing:.1em;background:none;border:none;color:var(--ink-faint);opacity:.55;cursor:pointer;padding:6px 8px;border-radius:8px}
 .dots:hover,.dots[aria-expanded=true]{opacity:1}
 .dots:focus-visible,.mbtn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .menu{display:flex;flex-direction:column;align-items:flex-end;gap:8px;font-size:13px;color:var(--ink-dim);text-align:right}
 .mcode{color:var(--ink-faint)}
+.mnote{max-width:260px;font-size:11.5px;line-height:1.5;color:var(--ink-faint)}
+.mbtn[aria-pressed=true]{background:var(--chip);border-color:var(--ink-dim);color:var(--ink)}
+.live{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:11.5px;color:var(--ink-faint);margin-right:auto;align-self:center;background:none;border:none;padding:4px 0;cursor:pointer}
+.live.paused::before{background:var(--ink-faint);box-shadow:none;animation:none}
+.live::before{content:"";width:6px;height:6px;border-radius:50%;background:#d0606f;box-shadow:0 0 6px #d0606f;animation:blink 2.4s ease-in-out infinite}
+@keyframes blink{50%{opacity:.35}}
 .mbtn{font:inherit;font-size:13px;background:transparent;border:1px solid var(--line);border-radius:999px;padding:5px 14px;color:var(--ink-dim);cursor:pointer}
 .mconfirm{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
 .mrow{display:flex;gap:8px}
@@ -154,8 +160,8 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
 <section class="intro" id="intro" hidden aria-label="How it works">
   <div class="ipage" data-i="0">
     <div class="ill" aria-hidden="true"><i class="p1a"></i><i class="p1b"></i><i class="p1c"></i></div>
-    <p class="itext">The light in this square<br>is your partner’s home.</p>
-    <p class="isub">When it’s lively over there, there’s more light and it moves faster.</p>
+    <p class="itext">The light in this square<br>follows your partner’s day.</p>
+    <p class="isub">It glows softer when it’s night where they are. If they share their room’s sound, the light moves with the life around them.</p>
   </div>
   <div class="ipage" data-i="1" hidden>
     <div class="ill" aria-hidden="true"><i class="p2bg"></i><i class="p2glow"></i><i class="p2ring"></i><i class="p2ring r2"></i><i class="p2ring r3"></i><i class="p2finger"></i></div>
@@ -185,9 +191,12 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
   </div>
   <p class="sr" id="cap" aria-live="polite"></p>
   <div class="me">
-    <button class="dots" id="dots" aria-expanded="false" aria-controls="menu" aria-label="Menu">⋯</button>
+    <div class="merow" style="display:flex;width:100%;align-items:center"><button class="live" id="live" hidden>Sharing your room’s sound</button>
+    <button class="dots" id="dots" aria-expanded="false" aria-controls="menu" aria-label="Menu">⋯</button></div>
     <div class="menu" id="menu" hidden>
       <span class="mcode" id="mcode"></span>
+      <button class="mbtn" id="mshare" aria-pressed="false">Share my room’s sound</button>
+      <span class="mnote" id="mnote">Only the loudness is measured. Nothing is recorded or sent as sound. Keep this page open, for example on a charger.</span>
       <button class="mbtn" id="mintro">How it works</button>
       <button class="mbtn" id="mchange">Change pairing code</button>
       <div class="mconfirm" id="mconfirm" hidden>
@@ -218,6 +227,13 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
   /* ---------- 參數 ---------- */
   // 光團：從方塊外面慢慢流進來，在裡面跟其他光融在一起，然後慢慢淡掉
   const AURA = [[238,92,168],[172,140,232],[140,198,240],[246,140,118],[172,222,176],[196,96,200],[250,178,150]];
+  // 對方那邊的時間決定光的顏色：清晨偏暖黃、白天彩色、傍晚粉紫、深夜冷藍
+  const PALETTES = {
+    night:   [[118,132,214],[150,140,224],[104,160,214],[132,118,200]],
+    morning: [[255,196,120],[250,166,140],[255,222,150],[246,140,118]],
+    day:     AURA,
+    evening: [[246,140,118],[238,92,168],[196,96,200],[250,178,150]]
+  };
   const MAX_LIGHTS = 8;
   const lights = [];
   let colorIdx = 0, nextSpawn = 2;
@@ -233,7 +249,23 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
   const smooth = (a,b,x) => { const t = clamp01((x-a)/(b-a)); return t*t*(3-2*t); };
   const mix = (a,b,t) => a.map((v,i) => v + (b[i]-v)*t);
   const gray = c => { const g = (c[0]+c[1]+c[2])/3; return [g,g,g]; };
-  const fakeLevel = s => clamp01(0.28 + 0.22*Math.sin(s/19) + 0.18*Math.sin(s/7.1 + 1.3) + 0.12*Math.sin(s/2.9 + 4));
+  // ---------- 對方的真實狀態：時間＋房間音量 ----------
+  // 對方的當地時間（用對方存的時區偏移；不知道時先用自己的時間）
+  function partnerHour() {
+    const st = P.pstat, off = st && typeof st.utcOffsetMin === "number" ? st.utcOffsetMin : -new Date().getTimezoneOffset();
+    const d = new Date(Date.now() + off * 60000);
+    return d.getUTCHours() + d.getUTCMinutes() / 60;
+  }
+  const periodOf = h => h < 5 ? "night" : h < 10 ? "morning" : h < 17 ? "day" : h < 22 ? "evening" : "night";
+  // 一天中的亮度：深夜最暗，白天最亮，中間慢慢過渡
+  const dayBright = h => 0.45 + 0.55 * (0.5 - 0.5 * Math.cos(Math.PI * 2 * ((h - 3 + 24) % 24) / 24));
+  // 沒有房間聲音時的平靜程度（只看時間，不再隨機亂跳）
+  const timeLevel = h => { const p = periodOf(h); return p === "night" ? 0.05 : p === "morning" ? 0.18 : p === "day" ? 0.26 : 0.18; };
+  // 對方房間的音量：45 秒內有更新才算數
+  function roomLevel() {
+    const sd = P.pstat && P.pstat.sound;
+    return sd && typeof sd.level === "number" && Date.now() - sd.at < 45e3 ? clamp01(sd.level) : null;
+  }
 
   /* ---------- 配對 ---------- */
   const store = {
@@ -241,7 +273,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
     set(k,v){ try { localStorage.setItem(k,v) } catch {} },
     del(k){ try { localStorage.removeItem(k) } catch {} }
   };
-  const P = { code:null, side:null, other:null, db:null, room:null, mine:[], seenIds:new Set(), queue:[], playing:0, ready:false };
+  const P = { code:null, side:null, other:null, db:null, room:null, mine:[], seenIds:new Set(), queue:[], playing:0, ready:false, soundSource:"time", bright:1 };
   const $ = id => document.getElementById(id);
   $("code").value = store.get("ywq.code") || "";
   const clean = v => v.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 32);
@@ -303,7 +335,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
     const d = new Date();
     P.db.ref(`pairs/${P.code}/log/${P.side}-${ymd()}`).push({
       t: d.toISOString(), local: localStamp(d), tz: TZ, utcOffsetMin: -d.getTimezoneOffset(),
-      sound: soundName(level), soundMode: mode, type, ...extra
+      sound: soundName(level), soundMode: mode, soundSource: P.soundSource, partnerHour: Math.round(partnerHour() * 10) / 10, type, ...extra
     }).catch(() => {});
   }
   function updateConn() {
@@ -372,6 +404,11 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
     logEvent("open");
     if (!document.hidden) { P.visibleSince = Date.now(); setPresence(true); }
     // 兩人同時在線：對方也開著頁面的時候
+    // 我的時區（對方用來算我這邊的時間），每 10 分鐘更新一次，換時區或日光節約也跟得上
+    const pubTz = () => P.db.ref(`pairs/${code}/status/${side}`).update({ tz: TZ, utcOffsetMin: -new Date().getTimezoneOffset(), at: Date.now() }).catch(() => {});
+    pubTz(); setInterval(pubTz, 10 * 60e3);
+    P.db.ref(`pairs/${code}/status/${P.other}`).on("value", snap => { P.pstat = snap.val() || null; });
+    if (store.get("ywq.share") === "1") startShare(true);
     P.db.ref(`pairs/${code}/presence/${P.other}`).on("value", snap => {
       const both = snap.exists() && !document.hidden;
       if (both && !P.bothSince) { P.bothSince = Date.now(); logEvent("both_online_start"); }
@@ -567,9 +604,13 @@ void main(){
 
   /* ---------- 每一幀 ---------- */
   let level = 0, phase = 0, last = 0, lastCap = "", flowT = 0;
+  P.bright = 1;
   function frame(ts) {
     const s = ts / 1000, dt = Math.min(0.1, (ts - (last || ts)) / 1000); last = ts;
-    const target = mode === "auto" ? fakeLevel(s) : Number(mode);
+    const ph = partnerHour(), room = roomLevel();
+    const target = mode !== "auto" ? Number(mode) : room != null ? room : timeLevel(ph);
+    P.soundSource = mode !== "auto" ? "researcher" : room != null ? "room" : "time";
+    P.bright += ((mode !== "auto" ? 1 : dayBright(ph)) - P.bright) * Math.min(1, dt * 0.5);
     if (!frame.started) { frame.started = true; level = target; }   // 一打開就是當下的音量，不會從 0 慢慢爬（避免多記一筆聲音改變）
     level += (target - level) * Math.min(1, dt * 1.5);
     phase += dt * 2*Math.PI / (6.5 - 4.7*level);      // 呼吸：安靜約 6.5 秒、講話約 4.4 秒、很吵約 2 秒
@@ -586,7 +627,7 @@ void main(){
       const from = [[u, -o], [1 + o, u], [u, 1 + o], [-o, u]][side];
       const to = [0.3 + Math.random()*0.4, 0.3 + Math.random()*0.4];
       lights.push({ from, to, age:0, travel: 9 + Math.random()*6, life: 26 + Math.random()*14,
-                    seed: Math.random()*50, r0: 0.16 + Math.random()*0.06, r1: 0.30 + Math.random()*0.12, col: AURA[colorIdx++ % AURA.length], ph: Math.random()*6.28 });
+                    seed: Math.random()*50, r0: 0.16 + Math.random()*0.06, r1: 0.30 + Math.random()*0.12, col: (pal => pal[colorIdx++ % pal.length])(PALETTES[mode !== "auto" ? "day" : periodOf(partnerHour())]), ph: Math.random()*6.28 });
       nextSpawn = 10 - 8.6*level + Math.random()*1.5;       // 安靜約 10 秒來一團，講話約 6 秒，很吵 1~2 秒
     }
     // 收到對方的想念：一團白光從邊緣流進來，到了就擴散出水波，之後慢慢淡掉
@@ -650,7 +691,7 @@ void main(){
       const fadeIn = smooth(0, 3, L.age), fadeOut = 1 - smooth(L.life - 7, L.life, L.age);
       const own = 0.5 - 0.5*Math.cos(phase + L.ph);
       const a = L.white ? smooth(0, L.catchup ? L.travel : 1.2, L.age) * (1 - smooth(L.travel + 1.5, L.life, L.age)) * (0.9 + 0.3*L.str) * (0.9 + 0.1*own)
-              : fadeIn * fadeOut * (0.85 - 0.3*level + (0.2 + 0.55*level)*own) * (0.6 + 0.6*level);
+              : fadeIn * fadeOut * (0.85 - 0.3*level + (0.2 + 0.55*level)*own) * (0.6 + 0.6*level) * P.bright;
       const c = L.white ? L.col : mix(gray(L.col), L.col, Math.min(1, 0.4 + 0.65*level));   // 安靜偏灰、講話柔和、很吵最鮮豔
       const rr = L.white ? (L.r0 + (L.r1 - L.r0) * k) * (1 + 0.5*smooth(L.travel, L.travel + 4, L.age))
                          : (L.r0 + (L.r1 - L.r0) * k) * (0.92 + 0.12*breath) * (1.15 - 0.3*level);
@@ -750,6 +791,64 @@ void main(){
     if (dx < -40 && introAt < ipages.length - 1) showIntro(introAt + 1);
     if (dx > 40 && introAt > 0) showIntro(introAt - 1);
   });
+  // ---------- 分享房間的聲音（只算音量，不錄音） ----------
+  const SH = { on:false, stream:null, ctx:null, an:null, buf:null, lvl:0, sentLvl:-1, sentAt:0, timer:0, lock:null };
+  async function startShare(auto) {
+    if (SH.on || !P.db) return;
+    try {
+      SH.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false } });
+    } catch (e) {
+      if (auto) { showResume(); return; }                    // 重新打開時沒辦法自動開麥克風：請他點一下
+      alertShare("Microphone access was not allowed, so the sound can’t be shared."); store.del("ywq.share"); return;
+    }
+    SH.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    try { await SH.ctx.resume(); } catch {}
+    if (SH.ctx.state !== "running") { SH.stream.getTracks().forEach(t => t.stop()); try { SH.ctx.close(); } catch {} if (auto) { showResume(); return; } }
+    const src = SH.ctx.createMediaStreamSource(SH.stream);
+    SH.an = SH.ctx.createAnalyser(); SH.an.fftSize = 2048; SH.buf = new Float32Array(SH.an.fftSize);
+    src.connect(SH.an);
+    SH.on = true; store.set("ywq.share", "1"); markShare();
+    try { SH.lock = await navigator.wakeLock.request("screen"); } catch {}
+    SH.timer = setInterval(tickShare, 250);
+    logEvent("sound_share_on", { auto: !!auto });
+  }
+  function tickShare() {
+    if (!SH.on) return;
+    SH.an.getFloatTimeDomainData(SH.buf);
+    let sum = 0; for (let i = 0; i < SH.buf.length; i++) sum += SH.buf[i] * SH.buf[i];
+    const db = 20 * Math.log10(Math.sqrt(sum / SH.buf.length) + 1e-8);
+    const v = clamp01((db + 58) / 36);                     // 約 -58 dB（很安靜）到 -22 dB（很吵）
+    SH.lvl += (v - SH.lvl) * (v > SH.lvl ? 0.35 : 0.06);   // 聲音變大反應快、變小慢慢退
+    const now = Date.now();
+    if (Math.abs(SH.lvl - SH.sentLvl) > 0.05 && now - SH.sentAt > 2500 || now - SH.sentAt > 20e3) {
+      SH.sentLvl = SH.lvl; SH.sentAt = now;
+      P.db.ref(`pairs/${P.code}/status/${P.side}/sound`).set({ level: Math.round(SH.lvl * 100) / 100, at: now }).catch(() => {});
+    }
+  }
+  function stopShare(reason) {
+    if (!SH.on) return;
+    SH.on = false; clearInterval(SH.timer);
+    try { SH.stream.getTracks().forEach(t => t.stop()); } catch {}
+    try { SH.ctx.close(); } catch {}
+    try { SH.lock && SH.lock.release(); } catch {}
+    if (P.db) P.db.ref(`pairs/${P.code}/status/${P.side}/sound`).remove().catch(() => {});
+    markShare();
+    logEvent("sound_share_off", { reason });
+  }
+  function markShare() {
+    $("mshare").setAttribute("aria-pressed", SH.on); $("mshare").textContent = SH.on ? "Stop sharing my room’s sound" : "Share my room’s sound";
+    $("live").hidden = !SH.on; $("live").classList.remove("paused"); $("live").textContent = "Sharing your room’s sound";
+  }
+  function showResume() { const l = $("live"); l.hidden = false; l.classList.add("paused"); l.textContent = "Tap to keep sharing your room’s sound"; }
+  $("live").onclick = () => { if (!SH.on) startShare(false); };
+  function alertShare(msg) { $("mnote").textContent = msg; }
+  $("mshare").onclick = () => SH.on ? (store.del("ywq.share"), stopShare("user")) : startShare(false);
+  document.addEventListener("visibilitychange", async () => {
+    if (!SH.on) return;
+    if (document.hidden) { try { SH.lock && SH.lock.release(); } catch {} SH.lock = null; }
+    else { try { SH.lock = await navigator.wakeLock.request("screen"); } catch {} try { await SH.ctx.resume(); } catch {} }
+  });
+
   $("mintro").onclick = () => { $("menu").hidden = true; $("dots").setAttribute("aria-expanded", false); openIntro(); };
 
   // 受測者自己的小選單：只能看配對碼、換配對碼
