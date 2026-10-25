@@ -79,7 +79,15 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
 @keyframes travel{0%{transform:translate(-130%,-40%);opacity:0}10%{opacity:1}42%{transform:translate(0,0);opacity:1}70%{opacity:.3}100%{transform:translate(0,0);opacity:0}}
 @keyframes ring3{0%,40%{opacity:0;transform:scale(.5)}45%{opacity:.95}80%{opacity:0;transform:scale(2.8)}100%{opacity:0}}
 @keyframes haze{0%,45%{opacity:0}75%{opacity:.75}92%{opacity:.75}100%{opacity:0}}
-@media (prefers-reduced-motion:reduce){.ill i{animation:none!important}.p2glow,.p3haze{opacity:.7}.p2ring,.p3ring{opacity:0}.p3light{opacity:0}}
+/* 4：不在的時候累積 → 打開時中間亮起、一個大漣漪 → 留下比較濃的白 */
+.p4bg{width:130%;height:130%;left:-15%;top:-15%;background:radial-gradient(circle at 50% 50%,rgba(140,198,240,.75),rgba(172,140,232,.55) 38%,rgba(246,140,118,.3) 58%,rgba(246,140,118,0) 72%)}
+.p4glow{width:70%;height:70%;left:15%;top:15%;background:radial-gradient(circle,rgba(255,253,248,1),rgba(255,253,248,0) 62%);opacity:0;animation:glow4 6.5s ease-in-out infinite}
+.p4ring{width:36%;height:36%;left:32%;top:32%;border:3px solid rgba(255,253,248,.95);box-shadow:0 0 14px rgba(255,253,248,.85);opacity:0;animation:ring4 6.5s ease-out infinite}
+.p4haze{width:150%;height:150%;left:-25%;top:-25%;background:radial-gradient(circle,rgba(255,253,248,.9),rgba(255,253,248,0) 62%);opacity:0;animation:haze4 6.5s ease infinite}
+@keyframes glow4{0%{opacity:0;transform:scale(.3)}30%{opacity:1;transform:scale(1)}55%{opacity:.4}100%{opacity:0}}
+@keyframes ring4{0%,30%{opacity:0;transform:scale(.5)}35%{opacity:1}85%{opacity:0;transform:scale(3.4)}100%{opacity:0}}
+@keyframes haze4{0%,40%{opacity:0}75%{opacity:.85}93%{opacity:.85}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.ill i{animation:none!important}.p4haze{opacity:.8}.p2glow,.p3haze{opacity:.7}.p2ring,.p3ring{opacity:0}.p3light{opacity:0}}
 
 .me{width:min(78vw,420px);max-width:100%;display:flex;flex-direction:column;align-items:flex-end;gap:8px;margin-top:-8px}
 .dots{font:inherit;font-size:20px;line-height:1;letter-spacing:.1em;background:none;border:none;color:var(--ink-faint);opacity:.55;cursor:pointer;padding:6px 8px;border-radius:8px}
@@ -157,12 +165,16 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
   <div class="ipage" data-i="2" hidden>
     <div class="ill" aria-hidden="true"><i class="p3bg"></i><i class="p3haze"></i><i class="p3light"></i><i class="p3ring"></i></div>
     <p class="itext">對方想你的時候，<br>光會流進來。</p>
-    <p class="isub">沒看到也沒關係，它會留下淡淡的白，慢慢散去。</p>
+    <p class="isub">它會擴散成水波，然後化成淡淡的白，留在方塊裡。</p>
+  </div>
+  <div class="ipage" data-i="3" hidden>
+    <div class="ill" aria-hidden="true"><i class="p4bg"></i><i class="p4haze"></i><i class="p4glow"></i><i class="p4ring"></i></div>
+    <p class="itext">你睡覺或不在的時候，<br>想念會等你回來。</p>
+    <p class="isub">下次打開時，會從中間亮起一個大大的漣漪。<br>對方想得越多，漣漪越大，留下的白也越濃，<br>大約一天後才慢慢散去。</p>
   </div>
   <div class="inav">
-    <div class="idots" aria-hidden="true"><b class="on"></b><b></b><b></b></div>
+    <div class="idots" aria-hidden="true"><b class="on"></b><b></b><b></b><b></b></div>
     <button class="inext" id="inext">下一步</button>
-    <button class="iskip" id="iskip">略過</button>
   </div>
 </section>
 
@@ -711,12 +723,10 @@ void main(){
     ipages.forEach((p, k) => p.hidden = k !== i);
     idots.forEach((d, k) => d.classList.toggle("on", k === i));
     $("inext").textContent = i === ipages.length - 1 ? "開始" : "下一步";
-    $("iskip").style.visibility = i === ipages.length - 1 ? "hidden" : "visible";
   }
   function openIntro() { showIntro(0); $("intro").hidden = false; $("inext").focus(); }
   function closeIntro(how) { $("intro").hidden = true; store.set("ywq.intro", "1"); logEvent("intro_close", { how, page: introAt + 1 }); }
   $("inext").onclick = () => introAt < ipages.length - 1 ? showIntro(introAt + 1) : closeIntro("done");
-  $("iskip").onclick = () => closeIntro("skip");
   // 左右滑也可以換頁
   let tx = null;
   $("intro").addEventListener("touchstart", e => { tx = e.touches[0].clientX; }, { passive: true });
