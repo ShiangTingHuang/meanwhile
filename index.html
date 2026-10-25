@@ -100,7 +100,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
   <div class="square grain" id="sq" role="button" tabindex="0" aria-label="對方家裡的聲音顏色；想對方的時候長按這裡"><canvas id="gl" aria-hidden="true"></canvas></div>
   </div>
   <p class="sr" id="cap" aria-live="polite"></p>
-  <details class="rbox">
+  <details class="rbox" id="rbox" hidden>
   <summary>研究者</summary>
   <div class="research" aria-label="研究者控制">
     <button class="chip" data-m="auto" aria-pressed="true">自動</button>
@@ -617,6 +617,11 @@ void main(){
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
+
+  // 研究者面板只在網址最後加上 #research 時出現，受測者看不到
+  const showResearch = () => { $("rbox").hidden = !/research/i.test(location.hash + location.search); };
+  showResearch();
+  window.addEventListener("hashchange", showResearch);
 
   $("simRecv").onclick = () => P.queue.push({ id: "sim" + Date.now(), side: P.other, t: Date.now(), ms: 2600, x: 0.3 + Math.random()*0.4, y: 0.3 + Math.random()*0.4 });
   const savedCode = store.get("ywq.code");
