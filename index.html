@@ -41,6 +41,15 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
 .sendring.go{animation:ring 1.5s ease-out 1.05s both}
 @keyframes ring{0%{opacity:0;transform:scale(.98)}15%{opacity:.95}100%{opacity:0;transform:scale(1.32)}}
 @media (prefers-reduced-motion:reduce){.sqwrap.pop{animation:none}.sendring.go{animation-duration:.01s}}
+.me{width:min(78vw,420px);max-width:100%;display:flex;flex-direction:column;align-items:flex-end;gap:8px;margin-top:-8px}
+.dots{font:inherit;font-size:20px;line-height:1;letter-spacing:.1em;background:none;border:none;color:var(--ink-faint);opacity:.55;cursor:pointer;padding:6px 8px;border-radius:8px}
+.dots:hover,.dots[aria-expanded=true]{opacity:1}
+.dots:focus-visible,.mbtn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.menu{display:flex;flex-direction:column;align-items:flex-end;gap:8px;font-size:13px;color:var(--ink-dim);text-align:right}
+.mcode{color:var(--ink-faint)}
+.mbtn{font:inherit;font-size:13px;background:transparent;border:1px solid var(--line);border-radius:999px;padding:5px 14px;color:var(--ink-dim);cursor:pointer}
+.mconfirm{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.mrow{display:flex;gap:8px}
 .rbox{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center;gap:8px;max-width:calc(100% - 32px)}
 .rbox summary{list-style:none;font-size:11px;color:var(--ink-faint);opacity:.45;cursor:pointer;letter-spacing:.1em;padding:4px 10px}
 .rbox summary::-webkit-details-marker{display:none}
@@ -100,6 +109,17 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
   <div class="square grain" id="sq" role="button" tabindex="0" aria-label="對方家裡的聲音顏色；想對方的時候長按這裡"><canvas id="gl" aria-hidden="true"></canvas></div>
   </div>
   <p class="sr" id="cap" aria-live="polite"></p>
+  <div class="me">
+    <button class="dots" id="dots" aria-expanded="false" aria-controls="menu" aria-label="設定">⋯</button>
+    <div class="menu" id="menu" hidden>
+      <span class="mcode" id="mcode"></span>
+      <button class="mbtn" id="mchange">換配對碼</button>
+      <div class="mconfirm" id="mconfirm" hidden>
+        <span>確定要換嗎？換了之後要重新輸入配對碼。</span>
+        <div class="mrow"><button class="mbtn" id="myes">確定</button><button class="mbtn" id="mno">取消</button></div>
+      </div>
+    </div>
+  </div>
   <details class="rbox" id="rbox" hidden>
   <summary>研究者</summary>
   <div class="research" aria-label="研究者控制">
@@ -617,6 +637,17 @@ void main(){
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
+
+  // 受測者自己的小選單：只能看配對碼、換配對碼
+  $("dots").onclick = () => {
+    const open = $("menu").hidden;
+    $("menu").hidden = !open; $("dots").setAttribute("aria-expanded", open);
+    $("mconfirm").hidden = true; $("mchange").hidden = false;
+    $("mcode").textContent = P.code ? `配對碼：${P.code}` : "";
+  };
+  $("mchange").onclick = () => { $("mchange").hidden = true; $("mconfirm").hidden = false; };
+  $("mno").onclick = () => { $("mconfirm").hidden = true; $("mchange").hidden = false; };
+  $("myes").onclick = () => { store.del("ywq.code"); location.reload(); };
 
   // 研究者面板只在網址最後加上 #research 時出現，受測者看不到
   const showResearch = () => { $("rbox").hidden = !/research/i.test(location.hash + location.search); };
