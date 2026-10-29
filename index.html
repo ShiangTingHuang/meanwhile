@@ -90,6 +90,8 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
 @media (prefers-reduced-motion:reduce){.ill i{animation:none!important}.p4haze{opacity:.8}.p2glow,.p3haze{opacity:.7}.p2ring,.p3ring{opacity:0}.p3light{opacity:0}}
 
 .me{width:min(78vw,420px);max-width:100%;display:flex;flex-direction:column;align-items:flex-end;gap:8px;margin-top:4px}
+.hint{margin:-6px 0 -10px;min-height:1.4em;font-size:12.5px;color:var(--ink-dim);opacity:0;transition:opacity .4s ease;pointer-events:none}
+.hint.show{opacity:1}
 .merow{display:flex;width:100%;align-items:center;gap:12px}
 .sharebtn{white-space:nowrap;display:inline-flex;align-items:center;gap:8px;font:inherit;font-size:13.5px;padding:9px 16px 9px 12px;border-radius:999px;border:1px solid var(--ink-dim);background:#fbfaf8;color:var(--ink);cursor:pointer;min-width:0}
 .sharebtn svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round}
@@ -194,6 +196,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
   <div class="sendring" id="ring" aria-hidden="true"></div>
   <div class="square grain" id="sq" role="button" tabindex="0" aria-label="The light of your partner’s home. Press and hold when you miss them."><canvas id="gl" aria-hidden="true"></canvas></div>
   </div>
+  <p class="hint" id="hint" aria-live="polite">Hold a little longer to send</p>
   <p class="sr" id="cap" aria-live="polite"></p>
   <div class="me">
     <div class="merow">
@@ -410,7 +413,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
       } else addMilk(v, 0);
     }, e => { P.err = e && e.code; updateConn(); });
     updateConn();
-    logEvent("open");
+    logEvent("open", { ua: (navigator.userAgent || "").slice(0, 180), pointer: !!window.PointerEvent, webgl: !!gl });
     if (!document.hidden) { P.visibleSince = Date.now(); setPresence(true); }
     // 兩人同時在線：對方也開著頁面的時候
     // 我的時區（對方用來算我這邊的時間），每 10 分鐘更新一次，換時區或日光節約也跟得上
@@ -477,13 +480,28 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
     const r = sq.getBoundingClientRect();
     if (e && e.clientX != null) { hold.x = (e.clientX - r.left) / r.width; hold.y = (e.clientY - r.top) / r.height; }
     else { hold.x = .5; hold.y = .5; }
-    hold.on = true; hold.t = 0; hold.next = 0; sq.classList.add("held");
+    hold.on = true; hold.t = 0; hold.next = 0; hold.start = performance.now(); sq.classList.add("held");
     if (navigator.vibrate) try { navigator.vibrate(12) } catch {}
   }
   function up() {
     if (!hold.on) return;
     hold.on = false; sq.classList.remove("held");
+    hold.t = Math.max(hold.t, (performance.now() - (hold.start || performance.now())) / 1000);   // 用實際經過的時間，手機很卡時也不會少算
+    if (hold.t < MIN_HOLD) { logEvent("tap_short", { ms: Math.round(hold.t * 1000) }); showHint(); }
     if (hold.t >= MIN_HOLD) { send.t = 0; send.x = hold.x; send.y = hold.y; send.w0 = hold.w; send.r0 = 0.08 + 0.32*hold.w; send.ms = hold.t*1000; }
+  }
+  // 太短的輕點：提示要按久一點
+  let hintTimer = 0;
+  function showHint() {
+    const h = $("hint"); h.classList.add("show");
+    clearTimeout(hintTimer); hintTimer = setTimeout(() => h.classList.remove("show"), 2200);
+  }
+  // 舊手機沒有 pointer 事件時，改用 touch／mouse
+  if (!window.PointerEvent) {
+    sq.addEventListener("touchstart", e => { e.preventDefault(); const t = e.touches[0]; down({ clientX: t.clientX, clientY: t.clientY }); }, { passive: false });
+    ["touchend", "touchcancel"].forEach(t => sq.addEventListener(t, up));
+    sq.addEventListener("mousedown", e => { e.preventDefault(); down(e); });
+    window.addEventListener("mouseup", up);
   }
   sq.addEventListener("pointerdown", e => { e.preventDefault(); try { sq.setPointerCapture(e.pointerId) } catch {} down(e); });
   ["pointerup","pointercancel","lostpointercapture"].forEach(t => sq.addEventListener(t, up));
